@@ -1,0 +1,34 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Include efm-pre-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/efm-pre-update.yml"
+
+- name: "Install and configure new EFM version {{ to_version }}"
+  include_tasks: install-new.yml
+  vars:
+    source_conf_dir: "{{ current_efm_conf_dir | default(_efm_conf_dir) }}"
+    _efm_conf_dir: "/etc/edb/efm-{{ from_version }}"
+
+- name: "Start EFM {{ to_version }} for cluster {{ cluster_name }}"
+  include_role:
+    name: efm/final
+
+- name: "Stop service and remove service file and packages for old EFM version {{ target_version }}"
+  include_tasks: cleanup.yml
+  vars:
+    service_name: "edb-efm-{{ target_version }}"
+    package_name: "edb-efm{{ target_version|replace('.','') }}"
+    target_version: "{{ from_version }}"
+
+- name: Include efm-post-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/efm-post-update.yml"

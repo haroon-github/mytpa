@@ -1,0 +1,31 @@
+---
+
+- include_role:
+    name: efm/pkg
+    tasks_from: main.yml
+
+- name: Ensure efm configuration directory exists
+  file:
+    path: "{{ efm_conf_dir }}"
+    owner: efm
+    group: efm
+    mode: "0755"
+    state: directory
+
+- name: "Upgrade EFM version for cluster {{ cluster_name }} from {{ from_version }} to {{ to_version }}"
+  command: "{{ efm_bin_dir }}/efm upgrade-conf {{ cluster_name }} -source {{ source_conf_dir }}"
+  args:
+    chdir: "{{ efm_conf_dir }}"
+  become: true
+  become_user: efm
+
+  # EFM requires us to either configure email alerts or provide a custom
+  # notification script. For now, we install a no-op notification script.
+
+- name: Install efm notification script
+  template:
+    src: efm.notification.sh.j2
+    dest: "{{ efm_conf_dir }}/{{ cluster_name }}-efm.notification.sh"
+    owner: efm
+    group: efm
+    mode: "0750"

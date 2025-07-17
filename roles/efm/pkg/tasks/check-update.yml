@@ -1,0 +1,41 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- include_tasks: list-packages.yml
+  vars:
+    list_varname: _all_efm_packages
+
+- name: Check if we can install the latest EFM packages
+  include_role:
+    name: pkg/install
+  vars:
+    package_list_name: "efm packages"
+    package_list: "{{ _all_efm_packages }}"
+    check_install_only: yes
+    result_varname: efm_pkg_check
+
+# The purpose of this check is to warn the user as early as possible if
+# they are missing any packages that we would try to install during an
+# upgrade window.
+#
+# Unfortunately, with the way RPM package dependencies work, if new efm5.X
+# packages ARE present, the check fails with a "Depsolve Error", which
+# tells us only that efm5.X packages conflict with the efm4.X ones. That's
+# not actually an error, and we shouldn't bother the user with it.
+
+- name: Try to check for required EFM-related packages before upgrade
+  fail:
+    msg: >-
+      Package installation check failed: {{ efm_pkg_check.msg }}
+  when:
+    efm_pkg_check is not successful
+    and not (ansible_distribution == 'RedHat'
+      and "Depsolve Error" in efm_pkg_check.msg)
+
+- set_fact:
+    efm_package_update: "{{
+      efm_pkg_check is defined 
+      and efm_pkg_check is successful 
+      and efm_pkg_check.changed is true
+    }}"
