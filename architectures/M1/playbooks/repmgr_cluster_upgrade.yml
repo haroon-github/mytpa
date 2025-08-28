@@ -49,6 +49,8 @@
     include_role:
       name: barman
       tasks_from: server-stop-receive-wal.yml
+    vars:
+      target_backup_name: "{{ chosen_primary_backup_name }}"
 
 # start of postgres minor upgrade process
 - name: Stop repmgrd

@@ -1,0 +1,8 @@
+---
+
+- name: Ensure backup is not in progress on Barman server {{ inventory_hostname }} for {{ target_backup_name }}
+  shell: >
+    /usr/bin/barman list-backup {{ target_backup_name }} | grep STARTED
+  become_user: "{{ barman_user }}"
+  register: result
+  failed_when: result.rc == 0

@@ -51,7 +51,8 @@
     include_role:
       name: barman
       tasks_from: server-stop-receive-wal.yml
-
+    vars:
+      target_backup_name: "{{ chosen_primary_backup_name }}"
 # Start upgrade process
 
 # Upgrade replicas first

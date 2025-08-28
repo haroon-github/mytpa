@@ -1,0 +1,24 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Run barman check
+  command: barman check all
+  register: barman_check
+  ignore_errors: true
+  become_user: "{{ barman_user }}"
+  become: yes
+
+- name: Run barman diagnose
+  command: barman diagnose
+  register: barman_diagnose
+  ignore_errors: true
+  become_user: "{{ barman_user }}"
+  become: yes
+
+- name: Fail if either of the above tasks failed
+  fail:
+    msg: "Barman check/diagnose failed"
+  when:
+    barman_check is not successful or barman_diagnose is not successful
+    and task_selector|permits('fail')
