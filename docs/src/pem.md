@@ -163,6 +163,33 @@ configure the webserver accordingly.
     pem_server_ssl_key: externally-provided.key
 ```
 
+## Organising instances in PEM
+
+PEM supports collating servers and/or agents into **groups** and **clusters**.
+You can specify this grouping from TPA by setting the following instance variables.
+
+On instances with the `pem-agent` role, but without `pem-server` role:
+
+- `monitoring_group` specifies the name of the group to which the Postgres server on this instance will be assigned. If not specified it defaults to the value of `pem_server_group`.
+- `monitoring_agent_group` specifies the name of the group to which the PEM agent on this instance will be assigned. If not specified it defaults to the value of `pem_agent_group`.
+- `monitoring_cluster` specifies the name of the cluster to which the Postgres server on this instance will be assigned. If not specified, no cluster will be assigned/created.
+- `monitoring_agent_cluster` specifies the name of the cluster to which the PEM agent on this instance will be assigned. If not specified, no cluster will be assigned/created.
+  
+!!!Note
+PEM only permits a given cluster name to exist in a single group, so some combinations of these values are not viable.
+For example if you specify the same `monitoring_cluster` and `monitoring_agent_cluster`, but different `monitoring_group` and `monitoring_agent_group`, this implies the same cluster name would appear in two different groups.
+TPA allows PEM to handle such inconsistencies rather than attempting to prevent them. 
+This generally means `deploy` will succeed but you may not get exactly the organisation of servers and agents you expected.
+!!!
+
+On instances with the `pem-server` role:
+
+- `pem_server_group` specifies the name of the default group to which Postgres servers registered with this PEM Server will be assigned. If not specified it defaults to `PEM Server Directory`.
+- `pem_agent_group` specifies the name of the default group to which PEM Agents registered with this PEM Server will be assigned. If not specified it defaults to `PEM Agents`
+
+Note that the Postgres server and PEM Agent on the instance with `pem-server` role are always assigned to `pem_server_group` and `pem_agent_group` respectively.
+TPA does not support adding this server or agent to a cluster.
+
 ## Shared PEM server
 
 Some deployments may want to use a single PEM server for monitoring and

@@ -1,0 +1,20 @@
+- summary: Introduce new instance-level variables to control how servers and agents are displayed in PEM
+  description: |
+    Introduce four new instance variables for use with the `pem-agent` role:
+    - `monitoring_group`
+    - `monitoring_agent_group`
+    - `monitoring_cluster`
+    - `monitoring_agent_cluster`
+    Also introduce the instance variable `pem_agent_group` for use with the `pem-server` role alongside the existing variable `pem-server-group`.
+    Collectively, these variables determine which group and cluster the servers and agents are assigned to in PEM.
+    See the documentation for a full explanation.
+  # Possible types: notable_change, minor_change, bugfix or breaking_change
+  type: minor_change
+  # At least one between jira_tickets or support_tickets must be defined. You
+  # can define both if you want
+  # You must have at least one list item in each *_tickets section that is
+  # defined
+  jira_tickets:
+    - TPA-1083
+  support_tickets:
+    - RT49911
