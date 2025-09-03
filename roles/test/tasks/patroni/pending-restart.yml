@@ -1,0 +1,20 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Get current patroni cluster monitoring information
+  include_role:
+    name: patroni/api
+    tasks_from: patroni
+
+- name: Ensure Patroni monitoring endpoint is reachable
+  fail:
+    msg: "The '/patroni' API endpoint was unreachable"
+  when: patroni_monitoring_api_output is not successful
+
+# If Postgres is not pending a restart, 'pending_restart' will not be exposed
+# in the API JSON response so we default to false.
+- name: Ensure Postgres is not pending a restart
+  fail:
+    msg: "Patroni reported that Postgres is pending a restart"
+  when: "{{ patroni_monitoring_api_output.json.pending_restart | default(false) }}"

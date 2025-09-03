@@ -1,0 +1,23 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Include patroni-pre-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/patroni-pre-update.yml"
+
+- include_role:
+    name: patroni/pkg
+    tasks_from: main.yml
+  vars:
+    patroni_initialised: true
+
+- include_role:
+    name: patroni/service
+    tasks_from: restart.yml
+  vars:
+    patroni_service_name: "patroni@{{ cluster_name }}"
+    to_state: "restarted"

@@ -1,0 +1,28 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+# From the patroni docs:
+# The GET /patroni is used by Patroni during the leader race. 
+# It also could be used by your monitoring system. 
+# The JSON document produced by this endpoint has the same structure 
+# as the JSON produced by the health check endpoints.
+
+- name: Get information about node from monitoring endpoint
+  uri:
+    url: "{{ _patroni_api_scheme }}://{{ inventory_hostname }}:{{ patroni_listen_port }}/patroni"
+    follow_redirects: none
+    method: GET
+    body_format: json
+    url_username: "{{ patroni_restapi_user }}"
+    url_password: "{{ vars['%s_password' % patroni_restapi_user] }}"
+
+    # This option is not supported until ansible core 2.11
+    # ca_path: "{{ patroni_ssl_enabled|ternary(_patroni_ssl_ca_path, omit) }}"
+    validate_certs: no
+
+    # This is needed to avoid blocking API calls in case there is a
+    # proxy, e.g. for downloading packages
+    use_proxy: no
+
+  register: patroni_monitoring_api_output
