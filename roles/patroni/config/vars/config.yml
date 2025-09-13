@@ -60,6 +60,7 @@ _patroni_conf:
     authentication:
       username: "{{ patroni_restapi_user }}"
       password: "{{ vars['%s_password' % patroni_restapi_user] }}"
+    allowlist: "{{ groups['patroni']|intersect(groups['role_postgres'])|list|sort }}"
 
   # Please note that this is only used once when a patroni cluster is instantiated
   # Any subsequent changes will need to be set using either `patronictl edit-config or the API
