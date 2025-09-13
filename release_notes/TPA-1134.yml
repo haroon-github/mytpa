@@ -1,0 +1,13 @@
+- summary: Improve security of Patroni REST API with access `allowlist`
+  description: |
+    The security of the Patroni REST API has been enhanced by configuring an `allowlist`
+    for unsafe API endpoints (which accept `POST`, `PUT`, `PATCH`, `DELETE`). This
+    measure prevents unauthorized nodes from performing administrative actions, such as
+    restarting a database node or changing the cluster configuration.
+
+    The `allowlist` is dynamically populated with the hostnames of the Patroni cluster
+    members based on the Ansible inventory, ensuring that only authorized nodes can
+    perform requests to these sensitive API endpoints.
+  type: minor_change
+  jira_tickets:
+  - TPA-1134
