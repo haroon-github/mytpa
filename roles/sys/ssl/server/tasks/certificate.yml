@@ -14,6 +14,10 @@
     path: "{{ csr_path|mandatory }}"
     privatekey_path: "{{ privatekey_path|mandatory }}"
     common_name: "{{ inventory_hostname }}"
+    subject_alt_name:
+      - "DNS:{{ inventory_hostname }}"
+      - "IP:127.0.0.1"
+      - "IP:{{ ip_address }}"
     basic_constraints: "CA:FALSE"
     basic_constraints_critical: yes
     force: no
