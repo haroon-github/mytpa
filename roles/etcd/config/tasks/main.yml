@@ -32,6 +32,11 @@
   when: >
     'etcd' in role
 
+- include_tasks: ssl.yml
+  when: >
+    'etcd' in role
+    and etcd_ssl_enabled
+
 - name: Install etcd.conf
   template:
     src: etcd.conf.j2

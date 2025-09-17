@@ -4,3 +4,11 @@
 
 etcd_user: etcd
 etcd_group: etcd
+
+use_ssl_cert_authentication: no
+
+etcd_ssl_service: etcd
+etcd_ssl_dir: "/etc/tpa/{{ etcd_ssl_service }}"
+etcd_local_ssl_dir: "{{
+  use_ssl_cert_authentication|
+   ternary(cluster_dir ~ '/ssl', cluster_dir ~ '/ssl/etcd') }}"
