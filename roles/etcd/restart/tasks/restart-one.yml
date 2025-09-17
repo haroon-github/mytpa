@@ -16,7 +16,7 @@
     etcd_endpoints: "{{
         groups['role_etcd']
         |select_by_hostvar(hostvars, 'etcd_location', etcd_location)
-        |map('pyformat_hostvars', '{inventory_hostname}:{etcd_client_port}', hostvars)
+        |map('pyformat_hostvars', '{etcd_protocol}://{inventory_hostname}:{etcd_client_port}', hostvars)
         |list
         |join(',')
       }}"
@@ -24,10 +24,14 @@
 - name: Check etcd cluster health before restart
   block:
   - command:
-      etcdctl endpoint health --endpoints="{{ etcd_endpoints }}"
+      etcdctl endpoint health --endpoints="{{ etcd_endpoints }}" {{ _ssl_options }}
     environment:
       ETCDCTL_API: 3
     register: etcd_health_check
+    vars:
+      # If the etcd server is running with SSL, then etcdctl needs to use the CA
+      # certificate, otherwise it fails.
+      _ssl_options: "{% if etcd_ssl_enabled %}--cacert={{ etcd_ssl_ca_file }}{% endif %}"
 
   - assert:
       msg: Refusing to restart etcd in an unhealthy cluster
@@ -47,10 +51,14 @@
 
 - name: Wait until etcd cluster is healthy after restart
   command:
-    etcdctl endpoint health --endpoints="{{ etcd_endpoints }}"
+    etcdctl endpoint health --endpoints="{{ etcd_endpoints }}" {{ _ssl_options }}
   environment:
     ETCDCTL_API: 3
   register: etcd_post_check
+  vars:
+    # If the etcd server is running with SSL, then etcdctl needs to use the CA
+    # certificate, otherwise it fails.
+    _ssl_options: "{% if etcd_ssl_enabled %}--cacert={{ etcd_ssl_ca_file }}{% endif %}"
   until: etcd_post_check.rc == 0
   retries: 3
   delay: 1
