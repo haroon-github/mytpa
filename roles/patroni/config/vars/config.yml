@@ -161,6 +161,13 @@ _patroni_conf_etcd:
         |list
         |sort
       }}"
+    protocol: "{{ etcd_protocol }}"
+
+# `etcd_ssl_enabled` is true
+
+_patroni_conf_etcd_ssl:
+  etcd3:
+    cacert: "{{ ssl_ca_file }}"
 
 # `patroni_watchdog_enabled` is true
 

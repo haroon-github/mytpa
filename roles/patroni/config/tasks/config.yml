@@ -170,6 +170,14 @@
     object_contents: "{{ _patroni_conf_etcd }}"
   when: patroni_dcs == 'etcd'
 
+- name: Update patroni config with ETCD SSL settings if required
+  include_role:
+    name: config/add_to_obj
+  vars:
+    object_varname: patroni_conf
+    object_contents: "{{ _patroni_conf_etcd_ssl }}"
+  when: patroni_dcs == 'etcd' and etcd_ssl_enabled
+
 - name: Update patroni config with watchdog settings if required
   include_role:
     name: config/add_to_obj
