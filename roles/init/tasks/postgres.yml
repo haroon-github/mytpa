@@ -199,6 +199,7 @@
     harp_proxy_mode: "{{ harp_proxy_mode|default(default_harp_proxy_mode) }}"
     harp_http_options: "{{ default_harp_http_options|combine(harp_http_options|default({}), recursive=true) }}"
     etcd_location: "{{ etcd_location|default(harp_location|default(location)) }}"
+    etcd_ssl_enabled: "{{ etcd_ssl_enabled|default(default_etcd_ssl_enabled) }}"
     etcd_peer_port: "{{ etcd_peer_port|default(default_etcd_peer_port) }}"
     etcd_client_port: "{{ etcd_client_port|default(default_etcd_client_port) }}"
     etcd_compaction_mode: "{{ etcd_compaction_mode|default(default_etcd_compaction_mode) }}"
