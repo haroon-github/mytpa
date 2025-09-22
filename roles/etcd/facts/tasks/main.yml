@@ -18,7 +18,12 @@
 
 - name: Set etcdctl command-line options
   set_fact:
-    etcdctl_options: "{{ _options_list | map('trim') | reject('==', '') | join(' ') }}"
+    # Use this for initial setup tasks like creating the first user, before the
+    # authentication role has run.
+    etcdctl_options_no_auth: "{{ _options_list_no_auth | map('trim') | reject('==', '') | join(' ') }}"
+    # Use this for all other tasks after the authentication role has run, independently
+    # if authentication was enabled by the role or not.
+    etcdctl_options: "{{ _options_list_with_auth | map('trim') | reject('==', '') | join(' ') }}"
   vars:
     _endpoints_option: >-
       {{ '--endpoints=' ~ (etcd_endpoints | quote) }}
@@ -26,6 +31,21 @@
     _ssl_options: >-
       {{ '--cacert=' ~ (etcd_ssl_ca_file | quote) if etcd_ssl_enabled else '' }}
 
-    _options_list:
+    # This role is run once in the beginning of the deployment, then run again by the
+    # etcd/authentication role. The second run is able to properly set this fact with
+    # auth credentials, in case it detects that authentication is enabled in etcd.
+    _auth_option: >-
+      {{
+        ('--user=' ~ ('root:' ~ vars['etcd_root_password']) | quote)
+        if etcd_authentication_is_enabled|default(false) and vars['etcd_root_password'] is defined
+        else ''
+      }}
+
+    _options_list_no_auth:
       - "{{ _endpoints_option }}"
       - "{{ _ssl_options }}"
+
+    _options_list_with_auth:
+      - "{{ _endpoints_option }}"
+      - "{{ _ssl_options }}"
+      - "{{ _auth_option }}"

@@ -11,3 +11,6 @@
     name: etcd/restart
   when: >
     task_selector|selects('etcd', 'service', 'restart')
+
+- include_role:
+    name: etcd/authentication

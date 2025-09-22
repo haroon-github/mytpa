@@ -1,0 +1,67 @@
+---
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+#
+# This task enables or disables basic authentication on the etcd cluster based on
+# the `etcd_authentication_mode`. It is designed to be idempotent.
+
+# Get the current state of authentication, and refresh facts so we can use them in the
+# next steps of this task.
+- include_tasks: state.yml
+
+# All authentication setup is a cluster-wide operation and should only be run once.
+- name: Enable etcd authentication if required
+  run_once: true
+  when:
+    - etcd_authentication_mode == 'basic'
+    - not etcd_authentication_is_enabled
+  block:
+    - name: Create the etcd root user
+      include_role:
+        name: etcd/rbac
+        tasks_from: create_user.yml
+      vars:
+        username: root
+        password: "{{ vars['etcd_root_password'] }}"
+        etcdctl_options: "{{ etcdctl_options_no_auth }}"
+
+    - name: Grant the root role to the etcd root user
+      include_role:
+        name: etcd/rbac
+        tasks_from: grant_role.yml
+      vars:
+        username: root
+        rolename: root
+        etcdctl_options: "{{ etcdctl_options_no_auth }}"
+
+    - name: Enable etcd authentication
+      command:
+        cmd: "etcdctl auth enable {{ etcdctl_options_no_auth }}"
+      environment:
+        ETCDCTL_API: 3
+      changed_when: true
+
+# All authentication setup is a cluster-wide operation and should only be run once.
+- name: Disable etcd authentication if required
+  run_once: true
+  when:
+    - etcd_authentication_mode == 'none'
+    - etcd_authentication_is_enabled
+  block:
+    - name: Disable etcd authentication
+      # To disable auth, we MUST provide the current credentials
+      command:
+        cmd: "etcdctl auth disable {{ etcdctl_options }}"
+      environment:
+        ETCDCTL_API: 3
+      changed_when: true
+
+    - name: Drop the etcd root user
+      include_role:
+        name: etcd/rbac
+        tasks_from: drop_user.yml
+      vars:
+        username: root
+
+# Get the current state of authentication, after possible changes done by the previous
+# steps, and refresh facts so we can use them in subsequent tasks/roles.
+- include_tasks: state.yml
