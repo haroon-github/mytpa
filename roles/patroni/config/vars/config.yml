@@ -136,11 +136,12 @@ _patroni_custom_postgres_wal_dir:
 
 _patroni_conf_ssl:
   restapi:
-    certfile: "{{ ssl_cert_file|default('/etc/tpa/'+cluster_name+'.crt') }}"
-    keyfile: "{{ ssl_key_file|default('/etc/tpa/'+cluster_name+'.key') }}"
+    certfile: "{{ patroni_ssl_cert_file }}"
+    keyfile: "{{ patroni_ssl_key_file }}"
   ctl:
-    cacert: "{{ ssl_ca_file|default(ssl_cert_file|default('/etc/tpa/'+cluster_name+'.crt')) }}"
-    certfile: "{{ ssl_cert_file|default('/etc/tpa/'+cluster_name+'.crt') }}"
+    cacert: "{{ patroni_ssl_ca_file }}"
+    certfile: "{{ patroni_ssl_cert_file }}"
+    keyfile: "{{ patroni_ssl_key_file }}"
 
 # `patroni_rewind_enabled` is true
 
