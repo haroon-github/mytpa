@@ -51,7 +51,7 @@ _patroni_dynamic_conf_defaults:
 
 _patroni_conf:
   scope: "{{ postgres_cluster_name }}"
-  namespace: "/{{ patroni_dcs_namespace|default('tpa') }}/"
+  namespace: "{{ patroni_dcs_namespace }}"
   name: "{{ inventory_hostname }}"
 
   restapi:

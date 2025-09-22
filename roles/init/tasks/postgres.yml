@@ -189,6 +189,7 @@
     wal_or_xlog: "{{ wal_string }}"
     max_connections: "{{ max_connections|default(default_max_connections) }}"
     harp_listen_port: "{{ harp_listen_port|default(default_harp_listen_port) }}"
+    patroni_dcs_namespace: "{{ patroni_dcs_namespace|default(default_patroni_dcs_namespace) }}"
     patroni_listen_port: "{{ patroni_listen_port|default(default_patroni_listen_port) }}"
     patroni_ssl_enabled: "{{ patroni_ssl_enabled|default(default_patroni_ssl_enabled) }}"
     publications: "{{ publications|default([]) }}"
