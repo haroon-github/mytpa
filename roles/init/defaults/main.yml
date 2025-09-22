@@ -477,6 +477,12 @@ default_failover_manager:
   edbpge: repmgr
 
 default_etcd_ssl_enabled: false
+# Defines the authentication mode for etcd.
+# - none: (Default) No client authentication is performed.
+# - basic: Clients must provide a valid username and password. Requires
+#          `etcd_ssl_enabled: true`.
+default_etcd_authentication_mode: none
+# When basic auth is enabled, we need a root user.
 default_etcd_peer_port: 2380
 default_etcd_client_port: 2379
 default_etcd_compaction_mode: revision
