@@ -169,6 +169,13 @@ _patroni_conf_etcd_ssl:
   etcd3:
     cacert: "{{ ssl_ca_file }}"
 
+# `etcd_authentication_mode` is basic
+
+_patroni_conf_etcd_authentication:
+  etcd3:
+    username: "{{ patroni_etcd_user }}"
+    password: "{{ vars['%s_password' % patroni_etcd_user] }}"
+
 # `patroni_watchdog_enabled` is true
 
 _patroni_conf_watchdog:
