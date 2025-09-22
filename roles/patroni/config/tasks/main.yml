@@ -36,6 +36,11 @@
     mode: "0750"
     state: directory
 
+- include_tasks: ssl.yml
+  when: >
+    failover_manager == 'patroni'
+    and patroni_ssl_enabled
+
 # Make sure users have been created before the config file is templated
 
 - include_tasks: config.yml

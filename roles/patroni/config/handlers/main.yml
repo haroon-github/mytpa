@@ -5,3 +5,10 @@
 - name: Note patroni config reload required
   set_fact:
     patroni_service_end_state: reloaded
+
+# This should reload the webserver that provides the https probes for Patroni
+- name: Notify patroni SSL configuration changed
+  debug:
+    msg: Note patroni SSL configuration changed
+  listen:
+    - Note patroni SSL configuration changed

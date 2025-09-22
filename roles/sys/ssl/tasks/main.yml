@@ -14,6 +14,7 @@
       - "{{ harp_http_options['secure'] }}"
       - "{{ pgbouncer_use_cert_authentication }}"
       - "{{ pgd_http_options['secure'] }}"
+      - "{{ patroni_ssl_enabled }}"
       # When running with communication channel encryption, etcd always verify
       # SSL/TLS certificates on peer-to-peer connections. So, a CA is needed even
       # if not using client certificates for server-client connections.
