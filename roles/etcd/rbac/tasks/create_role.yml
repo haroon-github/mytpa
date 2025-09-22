@@ -1,0 +1,37 @@
+---
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+#
+# Creates a role in etcd if it does not already exist.
+#
+# This task is idempotent and designed to be reusable.
+#
+# Expects the following variable to be defined:
+#
+# * rolename: (string) The name of the role to create.
+#
+# Uses the following facts, which should be set beforehand:
+# - etcdctl_options: (string) Pre-formatted options for etcdctl,
+#                    including endpoints, SSL, and auth credentials.
+
+- name: "Check if etcd role '{{ rolename }}' already exists"
+  command:
+    cmd: "etcdctl role get {{ rolename }} {{ etcdctl_options }}"
+  environment:
+    ETCDCTL_API: 3
+  register: role_check_result
+  changed_when: false
+  # We expect either rc 0 (role exists) or rc 1 with 'role name not found'
+  # in stderr (role does not exist). Anything else is an unexpected failure.
+  failed_when: >
+    role_check_result.rc == 1
+    and 'etcdserver: role name not found' not in role_check_result.stderr
+
+- name: "Create the etcd role '{{ rolename }}'"
+  when: >
+    role_check_result.rc == 1
+    and 'etcdserver: role name not found' in role_check_result.stderr
+  command:
+    cmd: "etcdctl role add {{ rolename }} {{ etcdctl_options }}"
+  environment:
+    ETCDCTL_API: 3
+  changed_when: true
