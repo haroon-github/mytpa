@@ -1,0 +1,18 @@
+- summary: Patroni REST API SSL/TLS connections are now correctly configured and secure
+  description: |
+    Previously, enabling SSL for the Patroni REST API (`patroni_ssl_enabled: true`) used
+    a self-signed certificate. This resulted in `CERTIFICATE_VERIFY_FAILED` errors for
+    clients like `patronictl`, making the feature unusable in a secure configuration.
+
+    This has been fixed by implementing a proper certificate generation process. The
+    Patroni REST API server is now configured with a server certificate signed by a
+    trusted Certificate Authority (CA). Additionally, the `ctl` section of the
+    `patroni.yml` configuration has been corrected to ensure `patronictl` is properly
+    configured to use the CA for server validation and to present its own client
+    certificate and key for authentication (mTLS).
+
+    As a result, enabling SSL for the Patroni REST API now provides a fully secure and
+    verifiable communication channel for all clients.
+  type: bugfix
+  jira_tickets:
+    - TPA-449
