@@ -1,0 +1,22 @@
+- summary: Enable etcd Basic Authentication and Role-Based Access Control
+  description: |
+    This release introduces a new capability to secure the etcd distributed key-value
+    store with client authentication. You can now enable basic authentication and
+    configure a dedicated user for Patroni with granular, least-privilege permissions.
+
+    A new configuration variable, `etcd_authentication_mode`, has been added to control
+    the feature. When set to `basic`, the deployment automation will:
+
+    - Set up an administrative `root` user.
+    - Create a dedicated etcd user for Patroni, given by the new `patroni_etcd_user`
+      configuration option, and grant it read-write permissions limited to its cluster's
+      key prefix (e.g., `/tpa/cluster_name`).
+    - Configure Patroni to automatically use these credentials to securely connect and
+      authenticate with etcd.
+
+    To maintain backward compatibility, this feature is disabled by default
+    (`etcd_authentication_mode: none`).
+  type: notable_change
+  jira_tickets:
+    - TPA-1128
+    - TPA-1136
