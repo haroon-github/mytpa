@@ -2,6 +2,30 @@
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
-- name: Set etcd facts for broader usage
+- name: Set etcd protocol
   set_fact:
     etcd_protocol: "{{ 'https' if etcd_ssl_enabled else 'http' }}"
+
+- name: Set etcd endpoints
+  set_fact:
+    etcd_endpoints: "{{
+        groups['role_etcd']
+        |select_by_hostvar(hostvars, 'etcd_location', etcd_location)
+        |map('pyformat_hostvars', '{etcd_protocol}://{inventory_hostname}:{etcd_client_port}', hostvars)
+        |list
+        |join(',')
+      }}"
+
+- name: Set etcdctl command-line options
+  set_fact:
+    etcdctl_options: "{{ _options_list | map('trim') | reject('==', '') | join(' ') }}"
+  vars:
+    _endpoints_option: >-
+      {{ '--endpoints=' ~ (etcd_endpoints | quote) }}
+
+    _ssl_options: >-
+      {{ '--cacert=' ~ (etcd_ssl_ca_file | quote) if etcd_ssl_enabled else '' }}
+
+    _options_list:
+      - "{{ _endpoints_option }}"
+      - "{{ _ssl_options }}"
