@@ -180,4 +180,5 @@
     - pgdproxy_password
     - replication_password
     - etcd_root_password
+    - etcd_patroni_password
   when: ansible_tower
