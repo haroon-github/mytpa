@@ -7,12 +7,24 @@
 # aim is to create a dummy table and check that it's correctly behaving in the PGD cluster
 - set_fact:
     bdr_testers: "{{ groups|members_of('role_bdr', not_in=['role_witness']) }}"
+    
 - block:
+  - name: create tpa schema in {{ bdr_database }}
+    postgresql_query:
+      conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
+      query: >
+        CREATE SCHEMA IF NOT EXISTS tpatest;
+    register: create_tpa_schema
+    vars:
+      _task_environment:
+        PGPASSWORD: "{{ vars['%s_password' % postgres_user] }}"
+    environment: "{{ target_environment|combine(_task_environment) }}"
+
   - name: create tpa table in {{ bdr_database }}
     postgresql_query:
       conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
       query: >
-        CREATE TABLE bdr.tpa
+        CREATE TABLE tpatest.tpa
         (
         tpa_id INT,
         tpa_name VARCHAR(30),
@@ -25,11 +37,12 @@
       _task_environment:
         PGPASSWORD: "{{ vars['%s_password' % postgres_user] }}"
     environment: "{{ target_environment|combine(_task_environment) }}"
+
   - name: set replica identity
     postgresql_query:
       conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
       query: >
-        ALTER TABLE bdr.tpa
+        ALTER TABLE tpatest.tpa
         REPLICA IDENTITY FULL;
     vars:
       _task_environment:
@@ -40,7 +53,7 @@
     postgresql_query:
       conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
       query: >
-        INSERT INTO bdr.tpa
+        INSERT INTO tpatest.tpa
         (tpa_id, tpa_name, tpa_date, tpa_bool, tpa_text)
         VALUES
         (
@@ -60,7 +73,7 @@
     postgresql_query:
       conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
       query: >
-        UPDATE bdr.tpa
+        UPDATE tpatest.tpa
         SET tpa_bool = true
         WHERE tpa_bool = false
         ;
@@ -73,7 +86,7 @@
     postgresql_query:
       conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
       query: >
-        DELETE FROM bdr.tpa
+        DELETE FROM tpatest.tpa
         WHERE tpa_id > 500
         ;
     vars:
@@ -85,7 +98,7 @@
     postgresql_query:
       conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
       query: >
-        ALTER TABLE bdr.tpa
+        ALTER TABLE tpatest.tpa
         ADD PRIMARY KEY (tpa_id)
         ;
     vars:
@@ -97,7 +110,7 @@
     postgresql_query:
       conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
       query: >
-        ALTER TABLE bdr.tpa
+        ALTER TABLE tpatest.tpa
         DROP COLUMN tpa_bool
         ;
     vars:
@@ -109,7 +122,7 @@
     postgresql_query:
       conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host=bdr_tester) }}"
       query: >
-        SELECT * FROM bdr.tpa;
+        SELECT * FROM tpatest.tpa;
     vars:
       _task_environment:
         PGPASSWORD: "{{ vars['%s_password' % postgres_user] }}"
@@ -120,7 +133,7 @@
     postgresql_query:
       conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
       query: >
-        TRUNCATE TABLE bdr.tpa;
+        TRUNCATE TABLE tpatest.tpa;
     vars:
       _task_environment:
         PGPASSWORD: "{{ vars['%s_password' % postgres_user] }}"
@@ -130,7 +143,17 @@
     postgresql_query:
       conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
       query: >
-        DROP TABLE bdr.tpa;
+        DROP TABLE tpatest.tpa;
+    vars:
+      _task_environment:
+        PGPASSWORD: "{{ vars['%s_password' % postgres_user] }}"
+    environment: "{{ target_environment|combine(_task_environment) }}"
+
+  - name: drop schema tpatest
+    postgresql_query:
+      conninfo: "{{ bdr_node_route_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
+      query: >
+        DROP SCHEMA tpatest CASCADE;
     vars:
       _task_environment:
         PGPASSWORD: "{{ vars['%s_password' % postgres_user] }}"

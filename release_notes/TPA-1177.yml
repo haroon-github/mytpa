@@ -1,0 +1,11 @@
+- summary: tpaexec test does not remove entry after testing
+  description: |
+      After deploying a cluster and running `tpaexec test` on
+      that cluster, creates an additional entry in 
+      bdr.replication_set_table which is not later removed.
+      
+      The fix makes the test run on a temporary schema called
+      `tpatest`, which is later removed after the test is finished.
+  type: bugfix
+  jira_tickets:
+  - TPA-1177
