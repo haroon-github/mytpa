@@ -130,6 +130,12 @@ adding the variable `pem_db_ca_certificate_key_size` to the `cluster_vars` secti
     pem_db_ca_certificate_key_size: 4096
 ```
 
+By default, the self-signed TLS certificate has a period of 10 years.
+The period can be adjusted by defining `openssl_certificate_validity` in
+the `cluster_vars` section. If the certificate needs to be replaced,
+use the `pem_web_server_renew_tls_certificates` variable on `tpaexec deploy`:
+`tpaexec deploy (...) -e pem_web_server_renew_tls_certificates=true`.
+
 To provide your own certificate pair, create a directory under the root of the 
 cluster directory named `ssl/pemserver` and place the certificate pair inside.
 ```

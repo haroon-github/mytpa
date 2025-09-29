@@ -61,6 +61,14 @@ to the `cluster_vars` section:
     postgres_rsa_key_size: 4096
 ```
 
+By default, the self-signed TLS certificate has a period of 3650 days.
+The period can be adjusted by defining `openssl_certificate_validity` 
+(in days) in the `cluster_vars` section. If the certificate needs to be
+replaced, use the `tpa_tls_renew_tls_certificates` variable on `tpaexec deploy`:
+`tpaexec deploy (...) -e tpa_tls_renew_tls_certificates=true`.
+
+
+
 ## Username
 
 The `postgres_user` and `postgres_group` settings (both `postgres` by
