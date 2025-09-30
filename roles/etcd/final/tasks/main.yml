@@ -8,9 +8,9 @@
     task_selector|selects('etcd', 'service')
 
 - include_role:
+    name: etcd/authentication
+
+- include_role:
     name: etcd/restart
   when: >
     task_selector|selects('etcd', 'service', 'restart')
-
-- include_role:
-    name: etcd/authentication

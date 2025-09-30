@@ -1,7 +1,16 @@
 ---
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
-#
+
+# We need to make sure etcd handles, like restarts, are processed before any tool which
+# uses etcd. As Patroni has a couple of 'patroni/final' calls, one in the very beginning
+# of this play, we put etcd/final at the very start too. That avoids issues that would
+# arise, for example, when switching from mtls to none authentication method in etcd.
+- include_role:
+    name: etcd/final
+  when: >
+    'etcd' in role
+
 # If this is a running patroni cluster, we need to regenerate patroni
 # config here because patroni controls postgres config and we might need
 # to add entries to pg_hba.conf or change replication slots before we
@@ -50,11 +59,6 @@
   when: >
     'barman' in role or backup is defined
     and task_selector|selects('barman')
-
-- include_role:
-    name: etcd/final
-  when: >
-    'etcd' in role
 
 # We must re-run the patroni/final role even if we ran it earlier
 # because the intermediate roles might require changes to
