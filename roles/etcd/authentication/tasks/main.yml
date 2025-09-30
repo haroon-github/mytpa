@@ -44,7 +44,7 @@
 - name: Disable etcd authentication if required
   run_once: true
   when:
-    - etcd_authentication_mode == 'none'
+    - etcd_authentication_mode in ['none', 'mtls']
     - etcd_authentication_is_enabled
   block:
     - name: Disable etcd authentication

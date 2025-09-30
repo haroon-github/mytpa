@@ -28,4 +28,8 @@ ETCD_PEER_CLIENT_CERT_AUTH=true
 
 ETCD_CERT_FILE="{{ etcd_ssl_cert_file }}"
 ETCD_KEY_FILE="{{ etcd_ssl_key_file }}"
+{% if etcd_authentication_mode == 'mtls' %}
+ETCD_CLIENT_CERT_AUTH=true
+ETCD_TRUSTED_CA_FILE="{{ etcd_ssl_ca_file }}"
+{% endif %}
 {% endif %}
