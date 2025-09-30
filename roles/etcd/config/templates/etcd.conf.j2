@@ -22,6 +22,9 @@ ETCD_PEER_KEY_FILE="{{ etcd_ssl_key_file }}"
 # etcd always verify certificates of peers, even when using certificates only for
 # channel encryption
 ETCD_PEER_TRUSTED_CA_FILE="{{ etcd_ssl_ca_file }}"
+{% if etcd_authentication_mode == 'mtls' %}
+ETCD_PEER_CLIENT_CERT_AUTH=true
+{% endif %}
 
 ETCD_CERT_FILE="{{ etcd_ssl_cert_file }}"
 ETCD_KEY_FILE="{{ etcd_ssl_key_file }}"
