@@ -35,3 +35,4 @@
     }}"
 
   register: patroni_config_api_output
+  ignore_errors: "{{ patroni_config_api_ignore_errors | default(false) }}"
