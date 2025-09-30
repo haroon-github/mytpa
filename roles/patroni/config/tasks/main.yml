@@ -36,10 +36,12 @@
     mode: "0750"
     state: directory
 
+# If we want to serve traffic over HTTPS we need SSL certificates. Similarly, if etcd
+# wants to use mTLS, we also need SSL certificates.
 - include_tasks: ssl.yml
-  when: >
-    failover_manager == 'patroni'
-    and patroni_ssl_enabled
+  when:
+    - failover_manager == 'patroni'
+    - patroni_ssl_enabled or etcd_authentication_mode == 'mtls'
 
 # Make sure users have been created before the config file is templated
 

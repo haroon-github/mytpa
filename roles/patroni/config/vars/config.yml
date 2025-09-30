@@ -172,10 +172,17 @@ _patroni_conf_etcd_ssl:
 
 # `etcd_authentication_mode` is basic
 
-_patroni_conf_etcd_authentication:
+_patroni_conf_etcd_basic_authentication:
   etcd3:
     username: "{{ patroni_etcd_user }}"
     password: "{{ vars['%s_password' % patroni_etcd_user] }}"
+
+# `etcd_authentication_mode` is mtls
+
+_patroni_conf_etcd_mtls_authentication:
+  etcd3:
+    cert: "{{ patroni_ssl_cert_file }}"
+    key: "{{ patroni_ssl_key_file }}"
 
 # `patroni_watchdog_enabled` is true
 
