@@ -481,6 +481,8 @@ default_etcd_ssl_enabled: false
 # - none: (Default) No client authentication is performed.
 # - basic: Clients must provide a valid username and password. Requires
 #          `etcd_ssl_enabled: true`.
+# - mtls: Mutual TLS authentication is required. Requires
+#          `etcd_ssl_enabled: true`.
 default_etcd_authentication_mode: none
 # When basic auth is enabled, we need a root user.
 default_etcd_peer_port: 2380
