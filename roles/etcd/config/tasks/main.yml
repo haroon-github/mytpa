@@ -45,7 +45,13 @@
     secret_name: etcd_root_password
     generate_password: true
 
-- include_tasks: ssl.yml
+- block:
+  - include_tasks: ssl.yml
+
+  # Refresh facts so etcdctl_options is properly set with the SSL parameters, if any
+  - name: Refresh etcd facts
+    include_role:
+      name: etcd/facts
   when: >
     'etcd' in role
     and etcd_ssl_enabled
