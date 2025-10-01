@@ -2,10 +2,56 @@
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
-# This service call should not handle restart, this is because it will also shut down postgres
-# when patroni stops. It is fine for a `reload` to occur through the systemd unit as the daemon
-# performs the same action for a SIGHUP as it does via a `patronictl reload` and via the /reload
-# API. A stop call should only be fired when Patroni is paused, so we avoid failovers.
+# It is fine for a `reload` to occur through the systemd unit as the daemon performs the
+# same action for a SIGHUP as it does via a `patronictl reload` and via the /reload API.
+# A stop or a restart call should only be fired when Patroni is paused, so we avoid
+# failovers.
+
+# Before restarting the agents, we need to pause the cluster to avoid failovers when
+# restarting the primary node.
+- name: Attempt to pause the Patroni cluster when restarting Patroni
+  include_role:
+    name: patroni/api
+    tasks_from: config
+  run_once: true
+  vars:
+    body:
+      pause: true
+    patroni_config_api_ignore_errors: true
+  when:
+    - to_state|default('started') == 'restarted'
+    - "'primary' in role"
+
+# Receiving HTTP status 409 means Patroni was not able to communicate with the DCS.
+# Besides that, receiving anything other than 200 means the request failed. So, if it's
+# not 200 or 409, which are well known values, we need to check the logs. An error
+# message like "Failed to get list of machines from" or "Etcd is not responding properly"
+# means the DCS is not accessible too
+- name: Verify that API pause failure was due to a known DCS error
+  when:
+    - to_state|default('started') == 'restarted'
+    - "'primary' in role"
+    - patroni_config_api_output.status != 200
+    - patroni_config_api_output.status != 409
+  block:
+    # We check the last 100 lines for the specific error that indicates Patroni cannot
+    # communicate with etcd. If it's not able to communicate with the DCS, it's very
+    # likely that we are performing changes to the DCS through TPA, for example
+    # switching etcd_authentication_mode from 'none' to 'mtls'. In that case, as Patroni
+    # requires a restart to take effect on changes to DCS credentials, we need to avoid
+    # calling the API to pause the cluster, as its DCS credentials will be stale.
+    - name: Check Patroni logs for DCS connection errors
+      command: "tail -n 100 /var/log/patroni/patroni.log"
+      register: log_check
+      changed_when: false
+
+    - name: Assert that the failure was the expected DCS connection error
+      assert:
+        that:
+          - "'ERROR: Failed to get list of machines from' in log_check.stdout or 'Etcd is not responding properly' in log_check.stdout"
+        fail_msg: >-
+          The Patroni API pause command failed for an unexpected reason. Please check
+          the Patroni logs for more details.
 
 - name: Start, reload or stop Patroni service, as required
   service:
@@ -17,3 +63,18 @@
     tasks_from: readiness
   when: >
     to_state|default('started') != 'stopped'
+
+# Now that the agents were restarted, we are fine to use the REST API again without
+# expecting any issues, as there is no chance of stale DCS configuration values at this
+# point.
+- name: Unpause the Patroni cluster when restarting Patroni
+  include_role:
+    name: patroni/api
+    tasks_from: config
+  run_once: true
+  vars:
+    body:
+      pause: false
+  when:
+    - to_state|default('started') == 'restarted'
+    - "'primary' in role"
