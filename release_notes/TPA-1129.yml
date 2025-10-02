@@ -1,0 +1,20 @@
+- summary: Mutual TLS (mTLS) Authentication for `etcd`
+  description: |
+    Support for mutual TLS has been added to secure all `etcd` communication. A new
+    `mtls` option is now available for the `etcd_authentication_mode` variable.
+
+    When `etcd_authentication_mode` is set to `mtls` (which requires
+    `etcd_ssl_enabled: true`), the deployment automation will enforce certificate-based
+    authentication for:
+
+    - Peer-to-peer communication between all `etcd` nodes.
+    - Client-server communication from clients like Patroni.
+
+    The playbook automatically configures both the `etcd` servers and the Patroni
+    clients with the necessary certificates and keys to ensure a fully secure and
+    validated connection.
+  type: notable_change
+  jira_tickets:
+    - TPA-1129
+    - TPA-1130
+    - TPA-1138
