@@ -80,3 +80,25 @@
       not (platform == 'docker' and patroni_watchdog_enabled|default(false))
     fail_msg:
       Patroni watchdog cannot be used on docker platform.
+
+- name: Ensure 'patroni_authentication_mode' value is valid
+  assert:
+    that:
+      patroni_authentication_mode in ['basic', 'mtls']
+    fail_msg: >
+      You need to set 'patroni_authentication_mode' to one of the following values:
+
+      * 'basic'
+      * 'mtls'
+
+      Refer to the TPA documentation for more information.
+
+- name: Ensure the configured Patroni SSL settings are valid
+  assert:
+    that:
+      patroni_ssl_enabled is true
+    fail_msg: >
+      You need to set 'patroni_ssl_enabled' as 'true' if you want mTLS authentication.
+      Refer to the TPA documentation for more information.
+  when: >
+    patroni_authentication_mode == 'mtls'
