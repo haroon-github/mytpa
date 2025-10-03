@@ -192,6 +192,7 @@
     patroni_dcs_namespace: "{{ patroni_dcs_namespace|default(default_patroni_dcs_namespace) }}"
     patroni_listen_port: "{{ patroni_listen_port|default(default_patroni_listen_port) }}"
     patroni_ssl_enabled: "{{ patroni_ssl_enabled|default(default_patroni_ssl_enabled) }}"
+    patroni_authentication_mode: "{{ patroni_authentication_mode|default(default_patroni_authentication_mode) }}"
     patroni_etcd_user: "{{ patroni_etcd_user|default(default_patroni_etcd_user) }}"
     publications: "{{ publications|default([]) }}"
     subscriptions: "{{ subscriptions|default([]) }}"
