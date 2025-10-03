@@ -1,0 +1,19 @@
+- summary: Mutual TLS (mTLS) Authentication for Patroni REST API
+  description: |
+    Support for mutual TLS has been added to provide a more secure, certificate-based
+    authentication method for the Patroni REST API.
+
+    A new configuration variable, `patroni_authentication_mode`, is now available. You
+    can set this to `mtls` to enable this feature. When enabled (which requires
+    `patroni_ssl_enabled: true`), the deployment automation will:
+
+    * Configure the Patroni REST API server to require and validate client certificates.
+    * Automatically configure clients, including `patronictl` and HAProxy health checks,
+      with the necessary client certificates and keys to connect securely.
+
+    The default authentication mode remains `basic` (username and password) to ensure
+    backward compatibility with existing deployments.
+  type: notable_change
+  jira_tickets:
+    - TPA-1135
+    - TPA-1139
