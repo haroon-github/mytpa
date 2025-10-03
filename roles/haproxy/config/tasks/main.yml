@@ -15,6 +15,13 @@
     group: root
     mode: "0644"
 
+# If Patroni REST API requires a client certificate and key, let's generate one for the
+# HAProxy agent.
+- include_tasks: ssl.yml
+  when:
+    - failover_manager == 'patroni'
+    - patroni_authentication_mode == 'mtls'
+
 - name: Install haproxy.cfg
   template:
     src: haproxy.cfg.j2

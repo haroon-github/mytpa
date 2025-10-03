@@ -1,0 +1,11 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+
+# This should reload the webserver that provides the https probes for haproxy
+- name: Notify haproxy SSL configuration changed
+  debug:
+    msg: Note haproxy SSL configuration changed
+  listen:
+    - Note haproxy SSL configuration changed
