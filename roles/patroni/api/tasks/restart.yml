@@ -27,9 +27,11 @@
     url: "{{ _patroni_api_scheme }}://{{ inventory_hostname }}:{{ patroni_listen_port }}/restart"
     body_format: json
     body: "{{ body|default(omit)|to_json }}"
-    url_username: "{{ patroni_restapi_user }}"
-    url_password: "{{ vars['%s_password' % patroni_restapi_user] }}"
+    url_username: "{{ (patroni_authentication_mode == 'basic') | ternary(patroni_restapi_user, omit) }}"
+    url_password: "{{ (patroni_authentication_mode == 'basic') | ternary(vars['%s_password' % patroni_restapi_user], omit) }}"
     ca_path: "{{ patroni_ssl_enabled|ternary(_patroni_ssl_ca_path, omit) }}"
+    client_cert: "{{ (patroni_authentication_mode == 'mtls') | ternary(patroni_ssl_cert_file, omit) }}"
+    client_key: "{{ (patroni_authentication_mode == 'mtls') | ternary(patroni_ssl_key_file, omit) }}"
 
     # This is needed to avoid blocking API calls in case there is a
     # proxy, e.g. for downloading packages
