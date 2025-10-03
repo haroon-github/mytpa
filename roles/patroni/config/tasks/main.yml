@@ -27,6 +27,7 @@
   vars:
     secret_name: "{{ patroni_restapi_user }}_password"
     generate_password: true
+  when: patroni_authentication_mode == 'basic'
 
 - name: Create and ensure owner on patroni etc directory
   file:

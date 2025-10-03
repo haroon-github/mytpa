@@ -57,9 +57,6 @@ _patroni_conf:
   restapi:
     listen: "0.0.0.0:{{ patroni_listen_port }}"
     connect_address: "{{ inventory_hostname }}:{{ patroni_listen_port }}"
-    authentication:
-      username: "{{ patroni_restapi_user }}"
-      password: "{{ vars['%s_password' % patroni_restapi_user] }}"
     allowlist: "{{ groups['patroni']|intersect(groups['role_postgres'])|list|sort }}"
 
   # Please note that this is only used once when a patroni cluster is instantiated
@@ -142,6 +139,23 @@ _patroni_conf_ssl:
     cacert: "{{ patroni_ssl_ca_file }}"
     certfile: "{{ patroni_ssl_cert_file }}"
     keyfile: "{{ patroni_ssl_key_file }}"
+
+# `patroni_authentication_mode` is basic
+
+_patroni_conf_basic_authentication:
+  restapi:
+    authentication:
+      username: "{{ patroni_restapi_user }}"
+      password: "{{ vars['%s_password' % patroni_restapi_user] }}"
+
+# `patroni_authentication_mode` is mtls
+
+_patroni_conf_mtls_authentication:
+  restapi:
+    cafile: "{{ patroni_ssl_ca_file }}"
+    verify_client: required
+  ctl:
+    insecure: false
 
 # `patroni_rewind_enabled` is true
 
