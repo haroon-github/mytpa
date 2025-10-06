@@ -121,9 +121,9 @@
   - include_role:
       name: pgdcli
     when:
-      ('bdr' in role and bdr_version is version('4', '>='))
+      (('bdr' in role and bdr_version is version('4', '>='))
       or 'pgdcli' in role
-      or 'pgd-proxy' in role
+      or 'pgd-proxy' in role)
       and task_selector|selects('pgdcli')
 
   - include_role:
