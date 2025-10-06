@@ -6,13 +6,13 @@
 #
 ansible-core==2.16.14
     # via -r requirements.in
-boto3==1.40.30
+boto3==1.40.45
     # via -r requirements.in
-botocore==1.40.30
+botocore==1.40.45
     # via
     #   boto3
     #   s3transfer
-certifi==2025.8.3
+certifi==2025.10.5
     # via
     #   -r requirements.in
     #   requests
@@ -20,7 +20,7 @@ cffi==2.0.0
     # via cryptography
 charset-normalizer==3.4.3
     # via requests
-cryptography==45.0.7
+cryptography==46.0.2
     # via
     #   -r requirements.in
     #   ansible-core
@@ -49,7 +49,7 @@ jmespath==1.0.1
     #   botocore
 keyring==25.6.0
     # via -r requirements.in
-markupsafe==3.0.2
+markupsafe==3.0.3
     # via jinja2
 more-itertools==10.8.0
     # via
@@ -61,7 +61,7 @@ packaging==25.0
     # via ansible-core
 passlib==1.7.4
     # via -r requirements.in
-psutil==7.0.0
+psutil==7.1.0
     # via -r requirements.in
 pycparser==2.23
     # via cffi
@@ -69,7 +69,7 @@ python-dateutil==2.9.0.post0
     # via
     #   -r requirements.in
     #   botocore
-pyyaml==6.0.2
+pyyaml==6.0.3
     # via
     #   -r requirements.in
     #   ansible-core
