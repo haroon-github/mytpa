@@ -361,6 +361,9 @@ playbook() {
         elif [[ $arg == --included?tasks=* ]]; then
             inclusion="${arg#*=}"
             args+=(-e included_tasks=$inclusion)
+        elif [[ $arg == --components=* ]]; then
+            inclusion="${arg#*=}"
+            args+=(-e upgrade_components=$inclusion)
         else
             set -- "$@" "$arg"
         fi

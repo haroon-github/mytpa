@@ -31,6 +31,17 @@
     - "'backup_name' in hostvars[member]"
     - hostvars[member]["backup"] == inventory_hostname or inventory_hostname in hostvars[member]["backup"]
 
+  - name: Turn upgrade_components into a list if required
+    set_fact:
+      upgrade_components_list: "{{ upgrade_components|default('postgres')|replace(',', ' ')|split }}"
+    when: upgrade_components|default('postgres') is string
+  
+  - name: Set up selectors for upgrade
+    set_fact:
+      upgrade_selector:
+        include: "{{ upgrade_components_list|default(upgrade_components) }}"
+        exclude: []
+    
   - name: M1 only dynamic groups
     when:
       groups['role_bdr']|default([]) is empty
