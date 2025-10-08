@@ -140,14 +140,15 @@
         "{{ enable_proxy_monitoring|default(false) }}"
 
 # We now are ready to fork to the correct upgrade workflow
-- import_playbook: "{{ tpa_dir }}/architectures/PGD-Always-ON/upgrade_legacy.yml"
-  vars:
-    bdr_major_version_upgrade: "{{ bdr4_major_version_upgrade }}"
-  when: >
-    bdr4_major_version_upgrade
-    or
-    bdr5_minor_version_upgrade
+- import_playbook: "{{ tpa_dir }}/architectures/lib/upgrade/PGD-Always-ON-minimal.yml"
+# - import_playbook: "{{ tpa_dir }}/architectures/PGD-Always-ON/upgrade_legacy.yml"
+#   vars:
+#     bdr_major_version_upgrade: "{{ bdr4_major_version_upgrade }}"
+#   when: >
+#     bdr4_major_version_upgrade
+#     or
+#     bdr5_minor_version_upgrade
 
-- import_playbook: "{{ tpa_dir }}/architectures/PGD-Always-ON/upgrade_major_3to5.yml"
-  when: >
-    bdr3_major_version_upgrade
+# - import_playbook: "{{ tpa_dir }}/architectures/PGD-Always-ON/upgrade_major_3to5.yml"
+#   when: >
+#     bdr3_major_version_upgrade
