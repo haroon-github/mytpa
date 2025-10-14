@@ -4,9 +4,9 @@ description: How to configure and deploy EDB Postgres Distributed (PGD) with TPA
 
 # EDB Postgres Distributed configuration
 
-TPA can install and configure EDB Postgres Distributed (PGD),
-formerly known as BDR (Bi-directional replication) versions 3.7, 4.x,
-and 5.x.
+TPA can install and configure EDB Postgres Distributed (PGD), formerly
+known as BDR (Bi-directional replication) versions 3.7, 4.x, 5.x. and
+6.x.
 
 Access to PGD packages is through EDB's package repositories only.
 You must have a valid EDB subscription token to download the packages.
@@ -32,7 +32,7 @@ and flavour of Postgres in use (e.g., Postgres, Postgres Extended, or
 EPAS).
 
 Set `bdr_version` to determine which major version of PGD to install
-(i.e., 3, 4, 5). Set `bdr_package_version` to determine which exact
+(i.e., 3, 4, 5, 6). Set `bdr_package_version` to determine which exact
 package to install (e.g., '5.0*' to install the latest 5.0.x).
 
 ## Overview of cluster setup
