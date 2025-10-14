@@ -190,20 +190,20 @@ clusters is described below.
    Barman server instance via `ssh-copy-id` and then do an ssh to
    make sure you can login without having to specify the password.
 
-    ```bash
+    ```shell
     # add first-cluster's key to the ssh-agent
-    $ cd $clusters/first-cluster
-    $ ssh-add id_first-clutser
-    $ cd $clusters/second-cluster
-    $ ssh-keyscan -t rsa,ecdsa -4 $barman-server-ip >> tpa_known_hosts
-    $ ssh-copy-id -i id_second-cluster.pub -o 'UserKnownHostsFile=tpa_known_hosts' $user@$barman-server-ip
-    $ ssh -F ssh_config $barman-server
+    cd $clusters/first-cluster
+    ssh-add id_first-clutser
+    cd $clusters/second-cluster
+    ssh-keyscan -t rsa,ecdsa -4 $barman-server-ip >> tpa_known_hosts
+    ssh-copy-id -i id_second-cluster.pub -o 'UserKnownHostsFile=tpa_known_hosts' $user@$barman-server-ip
+    ssh -F ssh_config $barman-server
     ```
 
 4. Copy the Barman user's keys from first-cluster to second-cluster
-    ```bash
-    $ mkdir $clusters/second-cluster/keys
-    $ cp $clusters/first-cluster/keys/id_barman* clusters/second-cluster/keys
+    ```shell
+    mkdir $clusters/second-cluster/keys
+    cp $clusters/first-cluster/keys/id_barman* clusters/second-cluster/keys
     ```
 5. Run `tpaexec deploy $clusters/second-cluster`
 

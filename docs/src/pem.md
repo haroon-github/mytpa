@@ -279,14 +279,16 @@ would look something like this:
    contains your access credentials to the pemserver's backend postgres
    instance in the `username:password` format.
 
-   ```bash
-   $ cat pem_creds
+   ```shell
+   cat pem_creds
+   ```
+   ```output
    postgres:f1I%fw!QmWevdzw#EL#$Ulu1cWhg7&RT
    ```
    If you don't know the backend password, you can get that by using
     `show-password` tpaexec command.
 
-   ```bash
+   ```shell
    tpaexec show-password $pem-clusterdir $user
    ```
 
@@ -314,7 +316,7 @@ or `enterprisedb` for `postgresql` and `epas` flavours respectively.
 tpaexec's show-password command will show the password for the backend
 user. For example:
 
-```bash
+```shell
 tpaexec show-password $clusterdir $user
 ```
 

@@ -15,8 +15,10 @@ To use the AWS API, you must:
 
 For example,
 
-```bash
-[tpa]$ cat > ~/.aws/credentials
+```shell
+cat > ~/.aws/credentials
+```
+```output
 [default]
 aws_access_key_id = AKIAIOSFODNN7EXAMPLE
 aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY

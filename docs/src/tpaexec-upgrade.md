@@ -82,8 +82,8 @@ unrelated pending changes before you begin the software upgrade process.
 To upgrade from BDR-Always-ON to PGD-Always-ON (that is, from BDR3/4 to
 PGD5), first run `tpaexec reconfigure`:
 
-```bash
-$ tpaexec reconfigure ~/clusters/speedy\
+```shell
+tpaexec reconfigure ~/clusters/speedy\
   --architecture PGD-Always-ON\
   --pgd-proxy-routing local
 ```
@@ -94,14 +94,14 @@ invocation, see [the command's own
 documentation](tpaexec-reconfigure.md). After reviewing the
 changes, run `tpaexec upgrade` to perform the upgrade:
 
-```bash
-$ tpaexec upgrade ~/clusters/speedy\
+```shell
+tpaexec upgrade ~/clusters/speedy\
 ```
 
 Or to run the upgrade with proxy monitoring enabled,
 
-```bash
-$ tpaexec upgrade ~/clusters/speedy\
+```shell
+tpaexec upgrade ~/clusters/speedy\
   -e enable_proxy_monitoring=true
 ```
 
@@ -207,8 +207,8 @@ restore point.
 For details of its invocation, see [the
 command's own documentation](tpaexec-reconfigure.md).
 
-```bash
-$ tpaexec reconfigure ~/clusters/speedy --enable-connection-manager
+```shell
+tpaexec reconfigure ~/clusters/speedy --enable-connection-manager
 ```
 
 #### Step 1.2: Apply the Configuration and Activate Connection Manager
@@ -253,8 +253,8 @@ version to 6, and removes any obsolete legacy settings.
 **This action only modifies the configuration file; it does not change
 the running state of your database cluster yet.**
 
-```bash
-$ tpaexec reconfigure ~/clusters/speedy --architecture PGD-X
+```shell
+tpaexec reconfigure ~/clusters/speedy --architecture PGD-X
 ```
 
 #### Step 2.2: Perform the Software Upgrade
@@ -263,14 +263,14 @@ After reviewing the final changes in `config.yml`, you can now run the
 standard `tpaexec upgrade` command. This will perform the software
 upgrade on all nodes, bringing your cluster to `PGD 6`.
 
-```bash
-$ tpaexec upgrade ~/clusters/speedy
+```shell
+tpaexec upgrade ~/clusters/speedy
 ```
 
 Or to run the upgrade with proxy monitoring enabled,
 
-```bash
-$ tpaexec upgrade ~/clusters/speedy\
+```shell
+tpaexec upgrade ~/clusters/speedy\
   -e enable_proxy_monitoring=true
 ```
 
@@ -349,8 +349,8 @@ switchover back to the initial primary node.
 You can control the order in which the cluster's instances are upgraded
 by defining the `update_hosts` variable:
 
-```bash
-$ tpaexec upgrade ~/clusters/speedy \
+```shell
+tpaexec upgrade ~/clusters/speedy \
   -e update_hosts=quirk,keeper,quaver
 ```
 
@@ -394,8 +394,8 @@ re-run `tpaexec provision`. The update will then install the latest
 available packages. You can still update to a specific version by
 specifying versions on the command line as shown below:
 
-```bash
-$ tpaexec upgrade ~/clusters/speedy -vv         \
+```shell
+tpaexec upgrade ~/clusters/speedy -vv         \
   -e postgres_package_version="2:11.6r2ndq1.6.13*"      \
   -e pglogical_package_version="2:3.6.11*"              \
   -e bdr_package_version="2:3.6.11*"
