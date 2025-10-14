@@ -41,6 +41,8 @@ set or read using tpa's `store-password` and `show-password` commands:
 
 ```shell
 tpaexec store-password . beacon_agent_access_key
+```
+```output
 Password:
 ```
 
