@@ -191,6 +191,55 @@ drop commit scopes as needed to ensure that the database matches the
 configuration. If you do not set it, it will leave existing commit
 scopes alone.
 
+### preferred_first_bdr_primary
+
+This is the name of the instance that TPA will use for PGD-related tasks that only run on a single node.
+This includes executing DDL/DML, which is then propagated to the other PGD nodes by replication.
+It also includes reading data for initializing a new PGD node.
+If not set, or set to an instance which is not usable, TPA will choose an instance arbitrarily from the suitable candidates if any.
+
+The instance selected by TPA is stored in the fact `first_bdr_primary`.
+The list of viable instances is stored in the fact
+`first_bdr_primary_candidates`. Neither of these facts can be set
+from `config.yml`, they are noted here for use in hooks or debugging.
+
+!!!Note
+The choice of `preferred_first_bdr_primary` does not influence which 
+nodes are elected as write leaders in the deployed cluster.
+!!!
+
+#### Advanced use of preferred_first_bdr_primary
+
+If you wish to set `preferred_first_bdr_primary` for a single operation,
+you can pass it using the Ansible `-e` option rather than specifying it 
+in `config.yml`. For example:
+
+```shell
+tpaexec deploy . -e preferred_first_bdr_primary=instance_name
+```
+
+This can be useful if you are adding or rebuilding a PGD node and wish
+to ensure that data is clone from a node in the same data centre for
+example.
+
+Similarly, you can set `preferred_first_bdr_primary` as an instance
+variable, with different instances on each node. For example, this
+configuration would mean that if `node1` was rebuilt, the `tpaexec
+deploy` command would prefer `node2` as the source of data with which to
+rebuild it.
+
+```yaml
+instances:
+  - Name: node1
+    ...
+    instance_vars:
+      preferred_first_bdr_primary: node2
+```
+
+If you use this configuration, it should be applied after the node is
+initially deployed; having multiple values of
+`preferred_first_bdr_primary` during a first deploy is not recommended.
+
 ## Miscellaneous notes
 
 ### Hooks
