@@ -22,5 +22,12 @@
       in 'config.yml' cannot be satisfied.
 
 - debug:
-    msg: "The desired pgdcli_package_version or higher is already installed. Nothing to update."
+    msg: "The desired pgdcli_package_version or higher is already installed. pgd-cli upgrade tasks will be skipped on '{{ inventory_hostname }}'."
   when: pgdcli_pkg_check.results == []
+
+- set_fact:
+    pgdcli_package_update: "{{
+      pgdcli_pkg_check is defined 
+      and pgdcli_pkg_check is successful 
+      and pgdcli_pkg_check.results is not empty 
+    }}"

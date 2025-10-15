@@ -8,20 +8,8 @@
     lookup('first_found', dict(files=hook, skip=True))
   vars:
     hook: "{{ cluster_dir }}/hooks/pgdcli-pre-update.yml"
-  
-- name: Determine if pgdcli version needs to be upgraded
+
+- name: Upgrade pgdcli package
   include_role:
-    name: pgdcli/pkg
-    tasks_from: check-update.yml
-
-- block:
-  - name: Upgrade pgdcli package
-    include_role:
-      name: pgdcli
-      tasks_from: upgrade.yml
-
-  - name: Post upgrade pgdcli info tests
-    include_role: 
-      name: test
-      tasks_from: pgd-cli/info.yml
-  when: pgdcli_pkg_check.results != []
+    name: pgdcli
+    tasks_from: upgrade.yml
