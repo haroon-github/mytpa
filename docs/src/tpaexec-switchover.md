@@ -23,7 +23,7 @@ services beforehand.
 This command will make `replicaname` be the new primary in
 `~/clusters/speedy`:
 
-```bash
+```shell
 tpaexec switchover ~/clusters/speedy replicaname
 ```
 
@@ -48,8 +48,10 @@ the pgbouncer instances are redirected to the new primary node.
     on the command that will switch back to the initial primary to make use of the initial pgbouncer config file instead of regenerating it.
     TPA saves the initial state of this config file as `pgbouncer.databases.ini.orig` during a switchover and can revert to it when going back to the initial primary
 
-    ```bash
-        # switchover to a replica
-        tpaexec switchover <cluster_name> <replica_name>
-        # revert to initial primary
-        tpaexec switchover <cluster_name> <initial_primary_name> -e"revert_redirect=true"
+    ```shell
+    # switchover to a replica
+    tpaexec switchover <cluster_name> <replica_name>
+    # revert to initial primary
+    tpaexec switchover <cluster_name> <initial_primary_name> -e"revert_redirect=true"
+    ```
+

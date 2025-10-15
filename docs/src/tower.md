@@ -296,4 +296,4 @@ ansible-builder build \
   --container-runtime=<docker/podman> \
   --tag=<your-registry>/<your-namespace>/tpa-ee:vA.B.C \
   --verbosity 2
-  ```
+```

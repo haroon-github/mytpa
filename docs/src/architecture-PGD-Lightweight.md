@@ -21,18 +21,18 @@ description: Configuring a PGD Lightweight cluster with TPA.
 An example invocation of `tpaexec configure` for this architecture
 is shown below.
 
-```bash
-    tpaexec configure ~/clusters/pgd-lw \
-        --architecture Lightweight \
-        --edb-postgres-extended 15 \
-        --platform aws --instance-type t3.micro \
-        --distribution Debian \
-        --location-names main dr \
+```shell
+tpaexec configure ~/clusters/pgd-lw \
+    --architecture Lightweight \
+    --edb-postgres-extended 15 \
+    --platform aws --instance-type t3.micro \
+    --distribution Debian \
+    --location-names main dr \
 ```
 
 You can list all available options using the help command.
 
-```bash
+```shell
 tpaexec configure --architecture Lightweight --help
 ```
 

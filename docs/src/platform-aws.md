@@ -303,7 +303,7 @@ For more fine-grained control, you can set:
 
 ### SSH keys (optional)
 
-```
+```yaml
 # Set this to change the name under which we register our SSH key.
 # ec2_key_name: tpa_cluster_name
 #
@@ -351,7 +351,7 @@ allocated address.
 
 ### Instance profile (optional)
 
-```
+```yaml
 # Set this to change the name of the instance profile role we create.
 # cluster_profile: cluster_name_profile
 #

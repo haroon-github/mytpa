@@ -377,7 +377,7 @@ settings defined by one file will be visible to any subsequent files.
 
 For example, your override file might contain:
 
-```
+```yaml
 cluster_tags:
   some_tag: "{{ lookup('env', 'SOME_ENV_VAR') }}"
 

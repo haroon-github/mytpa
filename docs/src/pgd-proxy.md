@@ -56,7 +56,7 @@ installed (e.g., to install additional configuration files).
 Group-level options related to pgd-proxy can be set under
 `bdr_node_groups` along with other node group options:
 
-```
+```yaml
 cluster_vars:
   bdr_node_groups:
   - name: group1
@@ -71,7 +71,7 @@ Note that `enable_proxy_routing` must be explicitly set to `true` for pgd-proxy 
 Node-level options related to pgd-proxy can be set under
 `bdr_node_options` on any PGD instance:
 
-```
+```yaml
 instances:
 - Name: first
   vars:
@@ -86,7 +86,7 @@ it is attached to, can be set under `default_pgd_proxy_options` under
 `cluster_vars` (which applies to all proxies), or under
 `pgd_proxy_options` on any pgd-proxy instance:
 
-```
+```yaml
 cluster_vars:
   default_pgd_proxy_options:
     listen_port: 6432
@@ -114,7 +114,7 @@ all the settings that defines the http(s) api which live under the `http`
 subsection of the `proxy` top section of `pgd-proxy-config.yml`.
 
 The variable can contain these keys:
-```
+```yaml
 enable: false
 secure: false
 cert_file: "/etc/tpa/harp_proxy/harp_proxy.crt"

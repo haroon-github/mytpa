@@ -55,7 +55,7 @@ key and certificate, see the documentation for
 The size of self-signed TLS key can be modified adding the variable `postgres_rsa_key_size`
 to the `cluster_vars` section:
 
-```yml
+```yaml
   (...)
   cluster_vars:
     postgres_rsa_key_size: 4096

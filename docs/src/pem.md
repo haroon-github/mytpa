@@ -84,7 +84,7 @@ A list of additional registration options can be
 passed by including `pemagent_registration_opts` in the cluster config.
 
 For example:
-```yml
+```yaml
   pemagent_registration_opts:
   - --enable-smtp true
   - --enable-heartbeat-connection
@@ -115,7 +115,7 @@ for HTTPS access.
 The size of `server-pem.key` can be modified adding the variable `pem_rsa_key_size`
 to the `cluster_vars` section:
 
-```yml
+```yaml
   (...)
   cluster_vars:
     pem_rsa_key_size: 4096
@@ -124,7 +124,7 @@ to the `cluster_vars` section:
 The size of the CA certificate expedited by the PEM database can also be modified 
 adding the variable `pem_db_ca_certificate_key_size` to the `cluster_vars` section:
 
-```yml
+```yaml
   (...)
   cluster_vars:
     pem_db_ca_certificate_key_size: 4096
@@ -138,7 +138,7 @@ use the `pem_web_server_renew_tls_certificates` variable on `tpaexec deploy`:
 
 To provide your own certificate pair, create a directory under the root of the 
 cluster directory named `ssl/pemserver` and place the certificate pair inside.
-```
+```yaml
 cluster directory
 ├── ssl
 │   └── pemserver
@@ -152,7 +152,7 @@ instance or `cluster_vars` in the cluster config file.
 TPA will handle copying these files over to the pem server instance and
 configure the webserver accordingly.
 
-```yml
+```yaml
 - Name: pemserver
   location: main
   node: 4

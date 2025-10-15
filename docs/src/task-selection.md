@@ -25,30 +25,30 @@ available for `tpaexec test`.
 
 To deploy without running barman-related tasks:
 
-```
-[tpa]$ tpaexec deploy <clustername> --excluded_tasks=barman
+```shell
+tpaexec deploy <clustername> --excluded_tasks=barman
 ```
 
 To deploy running only repmgr-related tasks:
 
-```
-[tpa]$ tpaexec deploy <clustername> --included_tasks=repmgr
+```shell
+tpaexec deploy <clustername> --included_tasks=repmgr
 ```
 
 To deploy without trying to set hostnames on the instances:
 
-```
-[tpa]$ tpaexec deploy <clustername> --excluded_tasks=hostname
+```shell
+tpaexec deploy <clustername> --excluded_tasks=hostname
 ```
 
 To prevent bootstrap and ssh tasks from ever running, put the following
 into `config.yml`:
 
 ```yaml
-    cluster_vars:
-      excluded_tasks:
-        - bootstrap
-        - ssh
+cluster_vars:
+    excluded_tasks:
+    - bootstrap
+    - ssh
 ```
 
 ## Supported selectors for `tpaexec deploy`

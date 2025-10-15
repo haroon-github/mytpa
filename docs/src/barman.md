@@ -66,16 +66,16 @@ are stored in the subdirectory `one` in the Barman home directory.
 The configuration file and directory names can be changed from the backed-up instance's
 `backup_name` setting defined on the `vars` section before the provisioning step.
 
-```yml
-    - Name: myPrimary
-      backup: myBarman
-      platform: bare
-      ip_address: x.x.x.x
-      node: 1
-      role:
-      - primary
-      vars:
-        backup_name: my_backup
+```yaml
+- Name: myPrimary
+  backup: myBarman
+  platform: bare
+  ip_address: x.x.x.x
+  node: 1
+  role:
+  - primary
+  vars:
+    backup_name: my_backup
 ```
 
 The following variables can be set on the backed-up instance and are
@@ -173,7 +173,7 @@ clusters is described below.
    specify the IP address of the Barman instance that this cluster can
    use to access it.
 
-    ```yml
+    ```yaml
     - Name: myBarman
       node: 5
       role:
