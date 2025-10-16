@@ -1,12 +1,132 @@
 ---
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
-#
-# This is a placeholder
 
-- name: Placeholder
-  hosts: localhost
-  gather_facts: false
+# before running this playbook we have run the init playbook on all
+# hosts and the dynamic_groups playbook, so the group g_update_hosts
+# is defined
+#
+# we would not be here unless all the nodes were running PGD 6 and
+# config.yml thought this was a pgd6 cluster
+
+- name: Health check for cluster {{ cluster_dir }}
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: all
   tasks:
-    - name: Placeholder
-      ansible.builtin.meta: noop
+
+  - name: set bdr version facts
+    include_role: name=postgres/bdr tasks_from=version.yml
+    when: >
+      "bdr" in role
+
+  - name: Record starting versions
+    set_fact:
+      starting_postgres_version: "{{ cluster_facts['postgres_version_string'].split()[:2]|join(' ') }}"
+      starting_bdr_version: "{{ cluster_facts.databases[bdr_database].bdr.bdr_version }}"
+    when: >
+      "bdr" in role
+
+  - name: pgd6 config check
+    include_role:
+      name: test
+      tasks_from: bdr6/config.yml
+    when: >
+      "bdr" in role
+
+  - name: listening ports check
+    include_role:
+      name: test
+      tasks_from: bdr6/ports.yml
+    when: >
+      "bdr" in role
+
+  - name: Output version information
+    debug:
+      msg: |
+        Starting versions: {{ starting_bdr_version }} on {{ starting_postgres_version }}
+    when: >
+      "bdr" in role
+
+- name: Set up repositories for {{ cluster_dir }}
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: g_update_hosts
+  tasks:
+
+  - name: Configure local-repo, if available
+    include_role:
+      name: sys/local_repo
+
+  - name: Set up remote repositories
+    include_role:
+      name: sys/repositories
+
+- name: Pre-upgrade checks for postgres and PGD
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_bdr:&g_update_hosts
+  tasks:
+
+  - name: check for installed packages
+    include_role:
+      name: postgres/pkg
+      tasks_from: check-update.yml
+
+- name: Update postgres/pgd on chosen instances
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_bdr:&g_update_hosts
+  serial: 1
+  tasks:
+
+  - name: listening ports check
+    include_role:
+      name: test
+      tasks_from: bdr6/ports.yml
+
+- name: Post-upgrade health checks
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: all
+  tasks:
+
+  - name: Re-run fact gathering
+    include_role: name=postgres/facts
+    when: >
+      "bdr" in role
+
+  - name: Set bdr version facts
+    include_role: name=postgres/bdr tasks_from=version.yml
+    when: >
+      "bdr" in role
+
+  - name: PGD6 config check
+    include_role:
+      name: test
+      tasks_from: bdr6/config.yml
+    when: >
+      "bdr" in role
+
+  - name: Output version information
+    debug:
+      msg: |
+        Starting versions: {{ starting_bdr_version }} on {{ starting_postgres_version }}
+        Running versions: {{ cluster_facts.databases[bdr_database].bdr.bdr_version }} on {{ cluster_facts['postgres_version_string'].split()[:2]|join(' ') }}
+    when: >
+      "bdr" in role
