@@ -17,6 +17,24 @@
 - import_playbook: "{{ tpa_dir }}/architectures/lib/dynamic_groups.yml"
   tags: always
 
+- name: Determine BDR version for cluster {{ cluster_dir }}
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_bdr
+  tasks:
+  - assert:
+      that:
+        - cluster_facts is defined
+      fail_msg: >
+        Couldn't perform cluster discovery. Are all nodes running?
+
+  - set_fact:
+      bdrdb_major_version:
+        "{{ cluster_facts.databases[bdr_database].bdr.bdr_major_version }}"
+
 - name: Run clusterwide health check before upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
@@ -30,13 +48,12 @@
       name: test
       tasks_from: pgd-cli/info.yml
     vars:
-      # bdrdb_major_version is set in the PGD-Always-ON and PGD-S/X playbooks
-      # I default to 5 in this case for testing purposes
-      bdr_version: "{{ bdrdb_major_version | default(5) }}" 
+      bdr_version: "{{ bdrdb_major_version }}" 
     when:
-    - first_bdr_primary is defined
-    - inventory_hostname == first_bdr_primary
-    - "'bdr' in role"
+      - first_bdr_primary is defined
+      - inventory_hostname == first_bdr_primary
+      - (('bdr' in role and bdrdb_major_version is version('5', '<=')) or 
+        ('pgdcli' in role and bdrdb_major_version is version('6', '>=')))
 
 - name: Check if pgd-cli version can be upgraded
   any_errors_fatal: true
@@ -46,8 +63,10 @@
   environment: "{{ target_environment }}"
   hosts: role_bdr:&g_update_hosts
   tasks:
-  - when: >
-      upgrade_selector|strict_selects('pgdcli') or upgrade_selector|strict_selects('all')
+  - when:
+    - upgrade_selector|strict_selects('pgdcli') or upgrade_selector|strict_selects('all')
+    - (('bdr' in role and bdrdb_major_version is version('5', '<=')) or 
+      ('pgdcli' in role and bdrdb_major_version is version('6', '>=')))
     block:
     - name: Define pdgcli package version if not defined in config.yml
       set_fact:
@@ -76,6 +95,8 @@
   - include_role: name=pgdcli/update
     when: 
     - upgrade_selector|strict_selects('pgd-cli') or upgrade_selector|strict_selects('all')
+    - (('bdr' in role and bdrdb_major_version is version('5', '<=')) or 
+      ('pgdcli' in role and bdrdb_major_version is version('6', '>=')))
     - can_upgrade_pgdcli
 
 - name: Run post-upgrade health check for the cluster
@@ -91,10 +112,9 @@
       name: test
       tasks_from: pgd-cli/info.yml
     vars:
-      # bdrdb_major_version is set in the PGD-Always-ON and PGD-S/X playbooks
-      # I default to 5 in this case for testing purposes
-      bdr_version: "{{ bdrdb_major_version | default(5) }}" 
+      bdr_version: "{{ bdrdb_major_version }}" 
     when:
-    - first_bdr_primary is defined
-    - inventory_hostname == first_bdr_primary
-    - "'bdr' in role"
+      - first_bdr_primary is defined
+      - inventory_hostname == first_bdr_primary
+      - (('bdr' in role and bdrdb_major_version is version('5', '<=')) or 
+        ('pgdcli' in role and bdrdb_major_version is version('6', '>=')))

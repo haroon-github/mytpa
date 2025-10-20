@@ -13,3 +13,10 @@
   include_role:
     name: pgdcli
     tasks_from: upgrade.yml
+
+- name: Include pgdcli-post-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/pgdcli-post-update.yml"
