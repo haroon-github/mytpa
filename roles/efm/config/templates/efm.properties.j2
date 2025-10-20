@@ -70,6 +70,9 @@ release.vip.background={{ efm_conf_settings['release.vip.background']|default(fa
 release.vip.pre.wait={{ efm_conf_settings['release.vip.pre.wait']|default(0) }}
 release.vip.post.wait={{ efm_conf_settings['release.vip.post.wait']|default(0) }}
 {% endif %}
+{% if efm_version is version('5.2', '>=') %}
+auto.basebackup={{ efm_conf_settings['auto.basebackup']|default(false) }}
+{% endif %}
 reconfigure.num.sync={{ efm_conf_settings['reconfigure.num.sync']|default(false) | bool }}
 reconfigure.num.sync.max={{ efm_conf_settings['reconfigure.num.sync.max']|default('') }}
 reconfigure.sync.primary={{ efm_conf_settings['reconfigure.sync.primary']|default(false) | bool }}
