@@ -132,6 +132,7 @@ runs:
         # Set an array to avoid joins
         declare -a CONFIGURE_OPTS
         declare -a OVERRIDE_FILES
+        declare -a repos_to_add
 
         CONFIGURE_OPTS+=(--architecture "${{ inputs.tpa_architecture }}")
         CONFIGURE_OPTS+=(--platform "${{ inputs.tpa_platform }}")
@@ -250,7 +251,6 @@ runs:
         : "${IMAGE_VERSION:=${image_ver:-latest}}"
 
         if [[ "${{ inputs.tpa_architecture }}" =~ ^PGD-(X|S)$ ]]; then
-          declare -a repos_to_add
           repos_to_add+=(enterprise)
           if [ "${{ inputs.cpu_architecture }}" == "s390x" ]; then
           #`--cluster-prefixed-hostnames` is required for s390x as we use a single node cluster
@@ -261,13 +261,16 @@ runs:
             repos_to_add+=(postgres_distributed)
           fi
 
-          CONFIGURE_OPTS+=(--edb-repositories "${repos_to_add[@]}")
-
           if [[ "${{ inputs.tpa_architecture }}" == "PGD-X" ]] ;then
             CONFIGURE_OPTS+=(
               --pgd-routing local
             )
           fi
+        fi
+
+        #Adding all the different repositories to configure options if any
+        if [ ${#repos_to_add[@]} -gt 0 ]; then
+          CONFIGURE_OPTS+=(--edb-repositories "${repos_to_add[@]}")
         fi
 
         # Save the image info for reuse in actions/cache
