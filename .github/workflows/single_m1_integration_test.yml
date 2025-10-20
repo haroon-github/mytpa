@@ -46,6 +46,7 @@ on:
         - 15
         - 16
         - 17
+        - 18
       tpa_failover_manager:
         description: "Failover-manager"
         type: choice

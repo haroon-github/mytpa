@@ -76,6 +76,7 @@ class BDR(Architecture):
             "15": "5" if arch in ["PGD-Always-ON", "Lightweight"] else "4",
             "16": "5" if arch in ["PGD-Always-ON", "Lightweight"] else "4",
             "17": "5" if arch in ["PGD-Always-ON", "Lightweight"] else "4",
+            "18": "5" if arch in ["PGD-Always-ON", "Lightweight"] else "4",
             None: "5" if arch in ["PGD-Always-ON", "Lightweight"] else "4",
         }
 

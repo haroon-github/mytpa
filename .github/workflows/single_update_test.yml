@@ -34,7 +34,6 @@ on:
         required: true
         type: choice
         options:
-        - tpa/debian:9
         - tpa/debian:10
         - tpa/debian:11
         - tpa/ubuntu:24.04
@@ -57,12 +56,12 @@ on:
         default: "14"
         type: choice
         options:
-        - 10
-        - 11
-        - 12
         - 13
         - 14
         - 15
+        - 16
+        - 17
+        - 18
       runner:
         description: "github runner (ubuntu20.04 required when using tpa_os_image: 'tpa/redhat:7')"
         required: false

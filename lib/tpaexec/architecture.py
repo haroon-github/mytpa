@@ -22,6 +22,7 @@ from functools import reduce
 from .exceptions import ArchitectureError, ExternalCommandError
 from .net import Network, DEFAULT_SUBNET_PREFIX_LENGTH, DEFAULT_NETWORK_CIDR
 from .platforms import Platform
+from tpa import constants
 
 KEYRING_SUPPORTED_BACKENDS = ["system", "legacy"]
 
@@ -256,7 +257,6 @@ class Architecture(object):
         # required, just check that we have the value in validate_arguments.
 
         supported_flavours = ["postgresql", "pgextended", "edbpge", "epas"]
-        supported_versions = ["11", "12", "13", "14", "15", "16", "17"]
 
         class FlavourAndMaybeVersionAction(argparse.Action):
             """Takes an option such as `--epas` or `--postgresql 15` and stores
@@ -302,7 +302,7 @@ class Architecture(object):
             const="postgresql",
             nargs="?",
             dest="postgres_flavour",
-            choices=supported_versions,
+            choices=constants.POSTGRESQL_SUPPORTED_VERSIONS,
             help="install PostgreSQL",
             metavar="VERSION",
         )
@@ -331,7 +331,7 @@ class Architecture(object):
             const="edb-postgres-extended",
             nargs="?",
             dest="postgres_flavour",
-            choices=supported_versions,
+            choices=constants.POSTGRESQL_SUPPORTED_VERSIONS,
             help="install EDB Postgres Extended (formerly 2ndQuadrant Postgres)",
             metavar="VERSION",
         )
@@ -342,14 +342,14 @@ class Architecture(object):
             const="epas",
             nargs="?",
             dest="postgres_flavour",
-            choices=supported_versions,
+            choices=constants.POSTGRESQL_SUPPORTED_VERSIONS,
             help="install EDB Postgres Advanced Server (EPAS)",
             metavar="VERSION",
         )
         g.add_argument(
             "--postgres-version",
             dest="postgres_version",
-            choices=supported_versions,
+            choices=constants.POSTGRESQL_SUPPORTED_VERSIONS,
             help="select a major version of Postgres to install",
         )
         g.add_argument(

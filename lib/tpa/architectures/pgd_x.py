@@ -25,6 +25,7 @@ class PGDX(PGD):
             ("15", "6"),
             ("16", "6"),
             ("17", "6"),
+            ("18", "6"),
         ]
 
     def num_instances(self):

@@ -13,12 +13,12 @@ on:
         default: "16"
         type: choice
         options:
-        - 12
         - 13
         - 14
         - 15
         - 16
         - 17
+        - 18
       tpa_architecture:
         description: "TPA architecture"
         required: true

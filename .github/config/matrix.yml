@@ -23,6 +23,7 @@ default:
     - "epas"
     - "edbpge"
   tpa_postgres_version: &default_tpa_postgres_version
+    - 18
     - 16
     - 14
   tpa_harp_consensus_protocol:
@@ -35,6 +36,8 @@ default:
       tpa_postgres_version: "14"
     - tpa_architecture: "BDR-Always-ON"
       tpa_postgres_version: "16"
+    - tpa_architecture: "BDR-Always-ON"
+      tpa_postgres_version: "18"
     - tpa_architecture: "BDR-Always-ON"
       tpa_postgres_version: "14"
       tpa_os_image: "debian:12"

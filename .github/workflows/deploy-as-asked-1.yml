@@ -35,7 +35,6 @@ on:
         options:
         - tpa/debian:11
         - tpa/debian:10
-        - tpa/debian:9
         - tpa/redhat:9
         - tpa/redhat:8
         - tpa/redhat:7
@@ -57,12 +56,12 @@ on:
         default: "14"
         type: choice
         options:
-        - 10
-        - 11
-        - 12
         - 13
         - 14
         - 15
+        - 16
+        - 17
+        - 18
       tpa_enable_pem:
         description: "Disable PEM"
         required: true

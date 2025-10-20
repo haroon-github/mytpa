@@ -49,12 +49,12 @@ on:
         default: 16
         type: choice
         options:
-        - 12
         - 13
         - 14
         - 15
         - 16
         - 17
+        - 18
       tpa_postgres_package_version:
         description: "package version to upgrade from"
         required: true
