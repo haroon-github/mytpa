@@ -22,11 +22,13 @@
 
 - debug:
     msg: "The desired 'pgdcli_package_version' or higher is already installed. pgd-cli upgrade tasks will be skipped on '{{ inventory_hostname }}'."
-  when: pgdcli_pkg_check.results == []
+  when:
+  - pgdcli_pkg_check is successful
+  - pgdcli_pkg_check.changed is false
 
 - set_fact:
     pgdcli_package_update: "{{
       pgdcli_pkg_check is defined 
       and pgdcli_pkg_check is successful 
-      and pgdcli_pkg_check.results is not empty 
+      and pgdcli_pkg_check.changed is true
     }}"
