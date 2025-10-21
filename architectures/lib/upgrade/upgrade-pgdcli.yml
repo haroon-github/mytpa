@@ -52,8 +52,7 @@
     when:
       - first_bdr_primary is defined
       - inventory_hostname == first_bdr_primary
-      - (('bdr' in role and bdrdb_major_version is version('5', '<=')) or 
-        ('pgdcli' in role and bdrdb_major_version is version('6', '>=')))
+      - (('bdr' in role  or 'pgd-proxy' in role) and bdrdb_major_version is version('5', '<=')) or 'pgdcli' in role
 
 - name: Check if pgd-cli version can be upgraded
   any_errors_fatal: true
@@ -65,8 +64,7 @@
   tasks:
   - when:
     - upgrade_selector|strict_selects('pgdcli') or upgrade_selector|strict_selects('all')
-    - (('bdr' in role and bdrdb_major_version is version('5', '<=')) or 
-      ('pgdcli' in role and bdrdb_major_version is version('6', '>=')))
+    - (('bdr' in role  or 'pgd-proxy' in role) and bdrdb_major_version is version('5', '<=')) or 'pgdcli' in role
     block:
     - name: Define pdgcli package version if not defined in config.yml
       set_fact:
@@ -95,8 +93,7 @@
   - include_role: name=pgdcli/update
     when: 
     - upgrade_selector|strict_selects('pgd-cli') or upgrade_selector|strict_selects('all')
-    - (('bdr' in role and bdrdb_major_version is version('5', '<=')) or 
-      ('pgdcli' in role and bdrdb_major_version is version('6', '>=')))
+    - (('bdr' in role  or 'pgd-proxy' in role) and bdrdb_major_version is version('5', '<=')) or 'pgdcli' in role
     - can_upgrade_pgdcli
 
 - name: Run post-upgrade health check for the cluster
@@ -116,5 +113,4 @@
     when:
       - first_bdr_primary is defined
       - inventory_hostname == first_bdr_primary
-      - (('bdr' in role and bdrdb_major_version is version('5', '<=')) or 
-        ('pgdcli' in role and bdrdb_major_version is version('6', '>=')))
+      - (('bdr' in role  or 'pgd-proxy' in role) and bdrdb_major_version is version('5', '<=')) or 'pgdcli' in role
