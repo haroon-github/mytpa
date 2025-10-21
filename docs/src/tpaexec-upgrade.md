@@ -316,7 +316,6 @@ software versions, the upgrade process does the following:
     - Unfences the node so it can receive connections again
     - Checks that the BDR cluster has re-established Raft consensus
     - Checks that the upgraded node is listening on the configured ports
-
 5. Re-runs the cluster health checks
 6. Outputs information about the upgraded packages
 
@@ -324,6 +323,7 @@ software versions, the upgrade process does the following:
 
 When upgrading an existing PGD-Always-ON (PGD5) cluster to the latest available
 software versions, the upgrade process does the following:
+
 
 1. Checks that all preconditions for upgrading the cluster are
    met.

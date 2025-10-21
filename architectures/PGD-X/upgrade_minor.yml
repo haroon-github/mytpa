@@ -81,16 +81,129 @@
     include_role:
       name: postgres/pkg
       tasks_from: check-update.yml
+    vars:
+      upgrade_from: '6'
 
-- name: Update postgres/pgd on chosen instances
+  - block:
+    - name: Get group information
+      command: >
+        {{ postgres_bin_dir }}/pgd group {{ group_name }} show --summary -o json
+      register: pgd_group
+      become_user: "{{ postgres_user }}"
+      become: yes
+      vars:
+        group_name: "{{ bdr_node_groups[1]['name'] }}"
+
+    - name: Determine write leader
+      set_fact:
+        write_leader: "{{ pgd_group.stdout|from_json|json_query(leader_query) }}"
+      vars:
+        leader_query: "[?info=='Write Leader']|[0].value"
+    when:
+      inventory_hostname == first_bdr_primary
+
+  - name: create temporary group
+    add_host:
+      name: "{{ hostvars[first_bdr_primary].write_leader }}"
+      groups: "g_write_leader"
+
+  # postgres_pkg_check has now been registered - examine its output
+  # should we actually verify something about version numbers?
+
+- name: Update postgres/pgd on chosen instances, except write leader
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_bdr:&g_update_hosts
+  hosts: role_bdr:&g_update_hosts:!g_write_leader
   serial: 1
   tasks:
+
+  - name: Fence off node {{ inventory_hostname }}
+    include_role:
+      name: postgres/bdr
+      tasks_from: fence.yml
+
+  - name: Stop/update/restart Postgres on {{ inventory_hostname }}
+    block:
+    - include_role: name=postgres/restart
+      vars:
+        postgres_service_end_state: stopped
+    - include_role: name=postgres/update
+      vars:
+        upgrade_from: '6'
+
+    - include_role: name=postgres/user
+    - include_role: name=postgres/config
+    - include_role: name=postgres/final
+
+  - name: Unfence node {{ inventory_hostname }}
+    include_role:
+      name: postgres/bdr
+      tasks_from: unfence.yml
+
+  - name: wait for bdr consensus before proceeding
+    postgresql_query:
+      conninfo: "{{ dsn|dbname(bdr_database) }}"
+      query: >
+        select s->>'leader_id' != '0' or s->>'leader' != '0' status from bdr.get_raft_status() s;
+    register: bdr_raft
+    until: bdr_raft.status == true
+    retries: 60
+    delay: 1
+    become_user: "{{ postgres_user }}"
+    become: yes
+
+  - name: listening ports check
+    include_role:
+      name: test
+      tasks_from: bdr6/ports.yml
+
+- name: Update postgres/pgd on write leader
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_bdr:&g_update_hosts:&g_write_leader
+  serial: 1
+  tasks:
+
+  - name: Fence off node {{ inventory_hostname }}
+    include_role:
+      name: postgres/bdr
+      tasks_from: fence.yml
+
+  - name: Stop/update/restart Postgres on {{ inventory_hostname }}
+    block:
+    - include_role: name=postgres/restart
+      vars:
+        postgres_service_end_state: stopped
+    - include_role: name=postgres/update
+      vars:
+        upgrade_from: '6'
+
+    - include_role: name=postgres/user
+    - include_role: name=postgres/config
+    - include_role: name=postgres/final
+
+  - name: Unfence node {{ inventory_hostname }}
+    include_role:
+      name: postgres/bdr
+      tasks_from: unfence.yml
+
+  - name: wait for bdr consensus before proceeding
+    postgresql_query:
+      conninfo: "{{ dsn|dbname(bdr_database) }}"
+      query: >
+        select s->>'leader_id' != '0' or s->>'leader' != '0' status from bdr.get_raft_status() s;
+    register: bdr_raft
+    until: bdr_raft.status == true
+    retries: 60
+    delay: 1
+    become_user: "{{ postgres_user }}"
+    become: yes
 
   - name: listening ports check
     include_role:
