@@ -1,0 +1,20 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Include pem-agent-pre-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/pem-agent-pre-update.yml"
+
+- name: Upgrade edb-pem-agent package
+  include_role: name=pem/agent/pkg
+
+- name: Include pem-agent-post-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/pem-agent-post-update.yml"
