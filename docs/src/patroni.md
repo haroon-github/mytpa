@@ -69,6 +69,45 @@ If your version does not match, try appending a `*` wildcard. This
 is often necessary when the package version has an epoch qualifier
 like `2:...`.
 
+# Security
+
+TPA provides robust options for securing the Patroni REST API. This is
+controlled primarily by the `patroni_ssl_enabled` and
+`patroni_authentication_mode` variables.
+
+## TLS Encryption
+
+Setting `patroni_ssl_enabled: true` enables TLS encryption for the REST API. TPA
+will automatically:
+
+* Generate a TPA cluster CA and server certificates for each Patroni node.
+* Configure the Patroni REST API to serve traffic over HTTPS.
+* Configure clients (like `patronictl` and HAProxy) to connect via HTTPS and
+  validate the server certificate using the CA.
+
+## Client Authentication
+
+Once TLS encryption is enabled (`patroni_ssl_enabled: true`), you can choose an
+authentication mode using the `patroni_authentication_mode` variable:
+
+* **`basic` (default):** Requires clients to provide the configured Patroni REST
+  API username and password. TPA generates these credentials automatically.
+* **`mtls`:** Requires clients to present a valid TLS certificate signed by the
+  trusted cluster CA. TPA automatically:
+
+  * Configures Patroni REST API to require and validate client certificates
+    (`verify_client: required`).
+  * Configures clients (`patronictl`, HAProxy) with the necessary client
+    certificates and keys.
+
+## API Access Control (Allowlist)
+
+For enhanced security, Patroni's REST API is automatically configured with an
+`allowlist`. This list restricts access to potentially harmful API endpoints
+(those using `POST`, `PUT`, `PATCH`, `DELETE`) to only the other Patroni nodes
+within the cluster, based on the hostnames defined in the TPA inventory.
+Read-only endpoints (like health checks) remain accessible from other sources
+(e.g., HAProxy).
 
 # Configuration options
 
@@ -82,15 +121,30 @@ in the deployment of Patroni in TPA.
 | `patroni_restapi_user`          | patroni       | Username to configure for the patroni REST API.                                                                                                                                                                                                                      |
 | `patroni_rewind_user`           | rewind        | Username to create in postgres for pg_rewind function.                                                                                                                                                                                                               |
 | `patroni_installation_method`   | pkg           | Install patroni from packages or source (e.g. git repo or local source directory if docker).                                                                                                                                                                         |
-| `patroni_package_flavour`       | community if no EDB repository is configured, else edb | Whether to install `edb-patroni` package (`edb` flavour, requires EDB repositories) or `patroni` package (`community` flavour, requires PGDG and EPEL (RedHat based only) repositories). |
+| `patroni_package_flavour`       | community if no EDB repository is configured, else edb | Whether to install `edb-patroni` package (`edb` flavour, requires EDB repositories) or `patroni` package (`community` flavour, requires PGDG and EPEL (RedHat based only) repositories).                                    |
 | `patroni_ssl_enabled`           | no            | Whether to enable SSL for REST API and ctl connection. Will use the cluster SSL cert and CA if available.                                                                                                                                                            |
+| `patroni_authentication_mode`   | `basic`       | Defines the client authentication mode (`basic` or `mtls`) for the REST API. Requires `patroni_ssl_enabled: true`.                                                                                                                                                   |
 | `patroni_rewind_enabled`        | yes           | Whether to enable postgres rewind, creates a user defined by patroni_rewind_user and adds config section.                                                                                                                                                            |
 | `patroni_watchdog_enabled`      | no            | Whether to configure the kernel watchdog for additional split brain prevention.                                                                                                                                                                                      |
 | `patroni_dcs`                   | etcd          | What backend to use for the DCS. The only option is etcd at the moment.                                                                                                                                                                                              |
+| `patroni_dcs_namespace`         | `/tpa`        | The namespace within the DCS under which Patroni stores its cluster state.                                                                                                                                                                                           |
 | `patroni_listen_port`           | 8008          | REST API TCP port number                                                                                                                                                                                                                                             |
+| `patroni_etcd_user`             | etcd_patroni  | The username for the dedicated etcd user Patroni uses when `etcd_authentication_mode` is `basic`.                                                                                                                                                                    |
 | `patroni_conf_settings`         | {}            | A structured data object with overrides for patroni configuration.<br/>Partial data can be provided and will be merged with the generated config.<br/>Be careful to not override values that are generated based on instance information known at runtime.           |
 | `patroni_dynamic_conf_settings` | {}            | Optional structured data just for DCS settings. This will be merged onto `patroni_conf_settings`.                                                                                                                                                                    |
 | `patroni_repl_max_lag`          | None          | This is used in the haproxy backend health check only when `haproxy_read_only_load_balancer_enabled` is true.<br/>See [REST API documentation](https://patroni.readthedocs.io/en/latest/rest_api.html#health-check-endpoints) for possible values for `/replica?lag` |
+
+!!! Note
+When deploying via Ansible Tower, changing `patroni_etcd_user` from its
+default value will cause the deployment to fail. This happens because TPA
+cannot handle dynamic secret names in its inventory. To avoid this issue,
+you must manually generate the password locally and push it to your
+configuration repository after provisioning and before deploying:
+
+    ```shell
+    tpaexec store-password <your_custom_username> .
+    ```
+!!!
 
 ## Patroni configuration file settings
 
@@ -179,6 +233,19 @@ cluster_vars:
   patroni_conf_settings:
     log: null
 ```
+
+## Etcd Integration
+
+When `etcd` is used as the DCS, TPA automatically configures Patroni to connect
+to it based on the `etcd` security configuration:
+
+* **Protocol:** Uses `http` or `https` based on `etcd_ssl_enabled`.
+* **CA Certificate:** Provides the cluster CA certificate path when TLS is enabled.
+* **Authentication:**
+    * If `etcd_authentication_mode` is `basic`, Patroni is configured with the
+      username (`patroni_etcd_user`) and its generated password.
+    * If `etcd_authentication_mode` is `mtls`, Patroni is configured with the
+      paths to its client certificate and key.
 
 # Patroni cluster management commands
 
