@@ -385,3 +385,9 @@ class M1(Architecture):
             cluster_vars["patroni_package_flavour"] = self._get_patroni_flavour(
                 cluster_vars,
             )
+
+            # Ensure secure defaults in the DCS and in Patroni itself
+            cluster_vars["etcd_ssl_enabled"] = True
+            cluster_vars["etcd_authentication_mode"] = "mtls"
+            cluster_vars["patroni_ssl_enabled"] = True
+            cluster_vars["patroni_authentication_mode"] = "mtls"
