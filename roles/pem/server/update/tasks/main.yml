@@ -9,8 +9,10 @@
   vars:
     hook: "{{ cluster_dir }}/hooks/pem-server-pre-update.yml"
 
-- name: Upgrade edb-pem package
-  include_role: name=pem/server
+- name: Upgrade edb-pem server
+  include_role:
+    name: pem/server
+    tasks_from: upgrade.yml
 
 - name: Configure pem server after package update
   include_role:

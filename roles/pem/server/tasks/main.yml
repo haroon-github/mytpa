@@ -7,10 +7,30 @@
   when: >
     task_selector|selects('pem-server', 'pkg')
 
+# This task sets the 'pem_is_v10_or_higher' fact needed to determine
+# if v10-packages should be installed. It must run after the PEM server 
+# package installation task as the schema version of the latest .sql 
+# file is used to set the aforementioned fact.
+
 - include_role:
     name: pem/server/facts
   when: >
     task_selector|selects('pem-server', 'pem-webserver')
+
+# PEM v10+ requires 'libpq5' on RHEL, so we include it if the PEM version
+# that was just installed is version 10 or higher. At the time of
+# this writing, assuming version 10 as the default is reasonable
+# and there should not be any harm if it is installed on PEM v9.
+
+- include_role:
+    name: pem/server/pkg
+    tasks_from: v10-packages.yml
+  vars:
+    _allowerasing: "{{ ansible_os_family in ('RedHat', 'Rocky') }}"
+    _allow_package_upgrades: yes
+  when:
+    - task_selector|selects('pem-server', 'pkg')
+    - pem_is_v10_or_higher | default(true)
 
 - include_role:
     name: pem/server/config/webserver

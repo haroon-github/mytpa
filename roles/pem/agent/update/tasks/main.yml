@@ -9,8 +9,18 @@
   vars:
     hook: "{{ cluster_dir }}/hooks/pem-agent-pre-update.yml"
 
-- name: Upgrade edb-pem-agent package
-  include_role: name=pem/agent/pkg
+- name: Remove libcurl-minimal if it is installed
+  include_role:
+    name: pem/agent/pkg
+    tasks_from: remove-package.yml
+  vars:
+    package_name: 'libcurl-minimal'
+
+- name: Upgrade 'edb-pem-agent' package
+  include_role:
+    name: pem/agent/pkg
+  vars:
+    _allow_package_upgrades: yes
 
 - name: Include pem-agent-post-update hook
   include_tasks: "{{ hook }}"

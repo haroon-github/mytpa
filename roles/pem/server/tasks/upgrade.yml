@@ -1,0 +1,26 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- include_role:
+    name: pem/server/pkg
+  vars:
+    _allowerasing: "{{ ansible_os_family in ('RedHat', 'Rocky') }}"
+    _allow_package_upgrades: yes
+
+- include_role:
+    name: pem/server/facts
+
+- include_role:
+    name: pem/server/pkg
+    tasks_from: v10-packages.yml
+  vars:
+    _allowerasing: "{{ ansible_os_family in ('RedHat', 'Rocky') }}"
+    _allow_package_upgrades: yes
+  when:
+    - task_selector|selects('pem-server', 'pkg')
+    - pem_is_v10_or_higher | default(true)
+
+- include_role:
+    name: pem/server/config/webserver
+

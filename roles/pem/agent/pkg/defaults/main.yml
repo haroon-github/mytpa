@@ -7,3 +7,10 @@ pem_agent_packages:
     - edb-pem-agent
   RedHat: *debian_pem_agent_packages
   SUSE: *debian_pem_agent_packages
+
+pem_agent_required_packages:
+  RedHat: &pem_agent_required_package
+    - libcurl-full
+  Debian: *pem_agent_required_package
+  Ubuntu: *pem_agent_required_package
+  SUSE: *pem_agent_required_package
