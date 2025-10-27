@@ -11,3 +11,4 @@
     package_list_name: "PEM agent packages"
     package_list: "{{ _all_pem_agent_packages }}"
     allow_package_upgrades: "{{ _allow_package_upgrades | default(false) }}"
+    allowerasing: "{{ _allowerasing | default(false) }}"

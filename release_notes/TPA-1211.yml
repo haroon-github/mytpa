@@ -1,0 +1,19 @@
+- summary: Install `libcurl-full` when required
+  description: |
+    `libcurl-minimal` is installed certain RHEL-esque images, and while it
+    satisfies the package dependencies for `edb-pem-agent`, it does NOT
+    provide the complete set of APIs required (namely for SMTP) If it is
+    installed, we remove it and install the `libcurl-full` meta-package to
+    ensure full `libcurl` functionality exists for the PEM agent. Because
+    the `edb-pem` package depends on the `edb-pem-agent` package, the
+    `libcurl-minimal` package must also be removed on the PEM server in
+    order to avoid dependency resolution conflicts. This is done by
+    installing the package with the `allowerase` parameter.
+  # Possible types: notable_change, minor_change, bugfix or breaking_change
+  type: minor_change
+  # At least one between jira_tickets or support_tickets must be defined. You
+  # can define both if you want
+  # You must have at least one list item in each *_tickets section that is
+  # defined
+  jira_tickets:
+  - TPA-1211

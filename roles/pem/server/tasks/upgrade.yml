@@ -5,7 +5,7 @@
 - include_role:
     name: pem/server/pkg
   vars:
-    _allowerasing: "{{ ansible_os_family in ('RedHat', 'Rocky') }}"
+    _allowerasing: "{{ ansible_os_family == 'RedHat' }}"
     _allow_package_upgrades: yes
 
 - include_role:
@@ -15,7 +15,7 @@
     name: pem/server/pkg
     tasks_from: v10-packages.yml
   vars:
-    _allowerasing: "{{ ansible_os_family in ('RedHat', 'Rocky') }}"
+    _allowerasing: "{{ ansible_os_family == 'RedHat' }}"
     _allow_package_upgrades: yes
   when: pem_is_v10_or_higher | default(true)
 

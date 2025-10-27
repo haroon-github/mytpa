@@ -20,8 +20,8 @@
   package:
     name: "{{ _versioned_packages }}"
     state: present
-    allowerasing: "{{ allowerasing|default(omit) }}"
-    use: "{{ allowerasing is defined | ternary('dnf', 'auto') }}"
+    allowerasing: "{{ allowerasing|default(false)|ternary(true, omit) }}"
+    use: "{{ allowerasing|default(false)|ternary('dnf', 'auto') }}"
   vars:
     _versioned_packages: "{{
         package_list|default([])|select('regex', '[=-][0-9]')|list
@@ -34,8 +34,8 @@
   package:
     name: "{{ _unversioned_packages }}"
     state: latest
-    allowerasing: "{{ allowerasing|default(omit) }}"
-    use: "{{ allowerasing is defined | ternary('dnf', 'auto') }}"
+    allowerasing: "{{ allowerasing|default(false)|ternary(true, omit) }}"
+    use: "{{ allowerasing|default(false)|ternary('dnf', 'auto') }}"
   vars:
     _unversioned_packages: "{{
         package_list|default([])|reject('regex', '[=-][0-9]')|list

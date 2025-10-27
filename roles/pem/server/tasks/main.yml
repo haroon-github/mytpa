@@ -4,6 +4,8 @@
 
 - include_role:
     name: pem/server/pkg
+  vars:
+    _allowerasing: "{{ ansible_os_family == 'RedHat' }}"
   when: >
     task_selector|selects('pem-server', 'pkg')
 
