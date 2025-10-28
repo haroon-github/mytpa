@@ -1,0 +1,17 @@
+- summary: Install libpq5 on PEM server v10+ for RHEL
+  description: |
+    PEM 10.1 added `libpq5` as a dependency to fix `psycopg` errors related
+    to `kerberos` authentication on RHEL 9 servers. A `postgres-server`
+    package could be installed which already provides `libpq5` (as in
+    providing capability, not always a package with the exact name). 
+    To ensure `libpq5` is installed, TPA now explicitly installs it on RHEL
+    servers when the PEM server version is 10 or greater.
+  # Possible types: notable_change, minor_change, bugfix or breaking_change
+  type: minor_change
+  # At least one between jira_tickets or support_tickets must be defined. You
+  # can define both if you want
+  # You must have at least one list item in each *_tickets section that is
+  # defined
+  jira_tickets:
+  - TPA-1166
+  - PEM-5609
