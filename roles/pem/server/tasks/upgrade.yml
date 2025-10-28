@@ -17,9 +17,7 @@
   vars:
     _allowerasing: "{{ ansible_os_family in ('RedHat', 'Rocky') }}"
     _allow_package_upgrades: yes
-  when:
-    - task_selector|selects('pem-server', 'pkg')
-    - pem_is_v10_or_higher | default(true)
+  when: pem_is_v10_or_higher | default(true)
 
 - include_role:
     name: pem/server/config/webserver

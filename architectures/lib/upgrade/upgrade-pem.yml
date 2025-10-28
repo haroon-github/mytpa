@@ -38,8 +38,7 @@
   hosts: role_pem-agent:&g_update_hosts
   tasks:
   - when:
-    - true
-    # - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
+    - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
     block:
     - name: Check if libcurl-minimal is installed
       package_facts:
@@ -65,8 +64,7 @@
   hosts: role_pem-server:&g_update_hosts
   tasks:
   - when:
-    - true
-    # - upgrade_selector|strict_selects('pem-server') or upgrade_selector|strict_selects('all')
+    - upgrade_selector|strict_selects('pem-server') or upgrade_selector|strict_selects('all')
     block:
     - include_role:
         name: pem/server/facts
@@ -93,7 +91,7 @@
   tasks:
   - include_role: name=pem/agent/update
     when: 
-    # - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
+    - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
     - can_upgrade_pem_agent
 
 - name: Upgrade edb-pem
@@ -106,8 +104,24 @@
   tasks:
   - include_role: name=pem/server/update
     when: 
-    # - upgrade_selector|strict_selects('pem-server') or upgrade_selector|strict_selects('all')
+    - upgrade_selector|strict_selects('pem-server') or upgrade_selector|strict_selects('all')
     - can_upgrade_pem_server
+
+- name: Restart pemagent service on all PEM agents after server upgrade
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-agent:&g_update_hosts
+  tasks:
+  - name: Restart pemagent service
+    service:
+      name: pemagent
+      state: restarted
+    when: 
+    - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
+    - can_upgrade_pem_agent
 
 - name: Run post-upgrade health check for the cluster
   any_errors_fatal: true

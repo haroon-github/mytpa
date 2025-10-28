@@ -2,16 +2,7 @@
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
-- block:
-  - name: Remove libcurl-minimal if it is installed
-    include_role:
-      name: pem/agent/pkg
-      tasks_from: remove-package.yml
-    vars:
-      package_name: 'libcurl-minimal'
-
-  - include_role:
-      name: pem/agent/pkg
-  
+- include_role:
+    name: pem/agent/pkg
   when: >
     task_selector|selects('pem-agent', 'pkg')
