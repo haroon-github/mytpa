@@ -222,13 +222,13 @@ The first (and recommended) option is to use `ALTER SYSTEM`, which
 always takes precedence over anything in the configuration files:
 
 ```sql
-# ALTER SYSTEM SET bdr.global_lock_statement_timeout TO '60s';
+ALTER SYSTEM SET bdr.global_lock_statement_timeout TO '60s';
 ```
 
 You can also edit `conf.d/9999-override.conf`:
 
-```bash
-$ echo "bdr.global_lock_statement_timeout='60s'" >> conf.d/9999-override.conf
+```shell
+echo "bdr.global_lock_statement_timeout='60s'" >> conf.d/9999-override.conf
 ```
 
 All other files under `conf.d` are subject to be overwritten during

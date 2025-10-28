@@ -1,0 +1,23 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- include_role:
+    name: test
+    tasks_from: barman/basic.yml
+
+- name: Stop wal receiver on barman nodes
+  include_role:
+    name: barman
+    tasks_from: server-stop-receive-wal.yml
+  loop: "{{ target_backups }}"
+  loop_control:
+    loop_var: target_backup_name
+
+- name: Check for any unfinished backup jobs
+  include_role: 
+    name: test
+    tasks_from: barman/check-running-backup.yml
+  loop: "{{ target_backups }}"
+  loop_control:
+    loop_var: target_backup_name

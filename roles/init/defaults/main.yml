@@ -99,27 +99,31 @@ supported_postgis_versions:
   - '3.3'
   - '3.4'
   - '3.5'
+  - '3.6'
 
-default_postgis_version: "{{ supported_postgis_versions | last }}"
+default_postgis_version: "{{ postgres_version is version('18','>=') | ternary('3.6', '3.5') }}"
 postgis_version_maj_min: "{{ default_postgis_version | split('.') }}"
 
+# This lookup table is a straightforward workaround for the package naming
+# convention change that occured for the version number in the pgaudit package name
+# for both the PGDG repos and EDB repos. Once Postgres version 15 is no longer
+# supported by TPA, this workaround should no longer be necessary (assuming the naming
+# convention for the packages remains consistent.)
 pgdg_pgaudit_version:
-  "11": "14"
-  "12": "14"
   "13": "15"
   "14": "16"
   "15": "17"
   "16": ""
   "17": ""
+  "18": ""
 
 edb_pgaudit_version:
-  "11": "1"
-  "12": "1"
   "13": "1"
   "14": "1"
   "15": "1"
   "16": "16"
   "17": "17"
+  "18": "18"
 
 # The EDB repos changed the naming convention for pgaudit packages
 # for version 16 and beyond. The PGDG repos remain consistent in
@@ -564,6 +568,7 @@ default_pem_agent_base_dir: /usr/edb/pem/agent
 default_pem_agent_service_name: pemagent
 default_pem_database: pem
 default_pem_server_group: "PEM Server Directory"
+default_pem_agent_group: "PEM Agents"
 
 default_pgd_proxy_home: /home/pgdproxy
 default_pgd_proxy_config_directory: /etc/edb/pgd-proxy
@@ -588,3 +593,4 @@ default_pem_db_ca_certificate_key_size: 4096
 default_ha_proxy_dhparams_key_size: 2048
 default_openvpn_rsa_key_size: 4096
 default_openvpn_dhparams_numbits_size: 2048
+default_openssl_certificate_validity: 3650

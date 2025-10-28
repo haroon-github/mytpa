@@ -1,0 +1,35 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- include_tasks: list-packages.yml
+  vars:
+    list_varname: _all_barman_packages
+
+- name: Check if we can install the desired barman packages
+  include_role:
+    name: pkg/install
+  vars:
+    package_list_name: "barman packages"
+    package_list: "{{ _all_barman_packages }}"
+    check_install_only: yes
+    result_varname: barman_pkg_check
+
+- assert:
+    that: barman_pkg_check is successful
+    fail_msg: >
+      Some packages are missing or the 'barman_package_version' specified
+      in 'config.yml' cannot be satisfied.
+
+- debug:
+    msg: "The desired 'barman_package_version' or higher is already installed. Barman upgrade tasks will be skipped on the Barman node '{{ inventory_hostname }}'."
+  when: 
+  - barman_pkg_check is successful
+  - barman_pkg_check.changed is false
+
+- set_fact:
+    barman_package_update: "{{
+      barman_pkg_check is defined 
+      and barman_pkg_check is successful 
+      and barman_pkg_check.changed is true
+    }}"

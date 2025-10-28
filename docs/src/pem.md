@@ -84,7 +84,7 @@ A list of additional registration options can be
 passed by including `pemagent_registration_opts` in the cluster config.
 
 For example:
-```yml
+```yaml
   pemagent_registration_opts:
   - --enable-smtp true
   - --enable-heartbeat-connection
@@ -115,7 +115,7 @@ for HTTPS access.
 The size of `server-pem.key` can be modified adding the variable `pem_rsa_key_size`
 to the `cluster_vars` section:
 
-```yml
+```yaml
   (...)
   cluster_vars:
     pem_rsa_key_size: 4096
@@ -124,15 +124,21 @@ to the `cluster_vars` section:
 The size of the CA certificate expedited by the PEM database can also be modified 
 adding the variable `pem_db_ca_certificate_key_size` to the `cluster_vars` section:
 
-```yml
+```yaml
   (...)
   cluster_vars:
     pem_db_ca_certificate_key_size: 4096
 ```
 
+By default, the self-signed TLS certificate has a period of 10 years.
+The period can be adjusted by defining `openssl_certificate_validity` in
+the `cluster_vars` section. If the certificate needs to be replaced,
+use the `pem_web_server_renew_tls_certificates` variable on `tpaexec deploy`:
+`tpaexec deploy (...) -e pem_web_server_renew_tls_certificates=true`.
+
 To provide your own certificate pair, create a directory under the root of the 
 cluster directory named `ssl/pemserver` and place the certificate pair inside.
-```
+```yaml
 cluster directory
 ├── ssl
 │   └── pemserver
@@ -146,7 +152,7 @@ instance or `cluster_vars` in the cluster config file.
 TPA will handle copying these files over to the pem server instance and
 configure the webserver accordingly.
 
-```yml
+```yaml
 - Name: pemserver
   location: main
   node: 4
@@ -156,6 +162,33 @@ configure the webserver accordingly.
     pem_server_ssl_certificate: externally-provided.crt
     pem_server_ssl_key: externally-provided.key
 ```
+
+## Organising instances in PEM
+
+PEM supports collating servers and/or agents into **groups** and **clusters**.
+You can specify this grouping from TPA by setting the following instance variables.
+
+On instances with the `pem-agent` role, but without `pem-server` role:
+
+- `monitoring_group` specifies the name of the group to which the Postgres server on this instance will be assigned. If not specified it defaults to the value of `pem_server_group`.
+- `monitoring_agent_group` specifies the name of the group to which the PEM agent on this instance will be assigned. If not specified it defaults to the value of `pem_agent_group`.
+- `monitoring_cluster` specifies the name of the cluster to which the Postgres server on this instance will be assigned. If not specified, no cluster will be assigned/created.
+- `monitoring_agent_cluster` specifies the name of the cluster to which the PEM agent on this instance will be assigned. If not specified, no cluster will be assigned/created.
+  
+!!!Note
+PEM only permits a given cluster name to exist in a single group, so some combinations of these values are not viable.
+For example if you specify the same `monitoring_cluster` and `monitoring_agent_cluster`, but different `monitoring_group` and `monitoring_agent_group`, this implies the same cluster name would appear in two different groups.
+TPA allows PEM to handle such inconsistencies rather than attempting to prevent them. 
+This generally means `deploy` will succeed but you may not get exactly the organisation of servers and agents you expected.
+!!!
+
+On instances with the `pem-server` role:
+
+- `pem_server_group` specifies the name of the default group to which Postgres servers registered with this PEM Server will be assigned. If not specified it defaults to `PEM Server Directory`.
+- `pem_agent_group` specifies the name of the default group to which PEM Agents registered with this PEM Server will be assigned. If not specified it defaults to `PEM Agents`
+
+Note that the Postgres server and PEM Agent on the instance with `pem-server` role are always assigned to `pem_server_group` and `pem_agent_group` respectively.
+TPA does not support adding this server or agent to a cluster.
 
 ## Shared PEM server
 
@@ -246,14 +279,16 @@ would look something like this:
    contains your access credentials to the pemserver's backend postgres
    instance in the `username:password` format.
 
-   ```bash
-   $ cat pem_creds
+   ```shell
+   cat pem_creds
+   ```
+   ```output
    postgres:f1I%fw!QmWevdzw#EL#$Ulu1cWhg7&RT
    ```
    If you don't know the backend password, you can get that by using
     `show-password` tpaexec command.
 
-   ```bash
+   ```shell
    tpaexec show-password $pem-clusterdir $user
    ```
 
@@ -281,7 +316,7 @@ or `enterprisedb` for `postgresql` and `epas` flavours respectively.
 tpaexec's show-password command will show the password for the backend
 user. For example:
 
-```bash
+```shell
 tpaexec show-password $clusterdir $user
 ```
 

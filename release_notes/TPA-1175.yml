@@ -1,0 +1,13 @@
+- summary: Added support for validity period in OpenSSL generated certificates
+  description: |
+    SSL certificates (OpenVPN, PEM and TPA itself) used in TPA don't come with a way of handling the 
+    number of days before expiration.
+    This change includes a variable called "openssl_certificate_validity" (default 3650 days), that can be
+    used to determine the number of days a SSL certificate will have before expiring. 
+    In order to force TPA to reload a new certificate with a new expiration date, you need to pass some 
+    variables on the deploy phase depending on what you want to renew (to renew the PEM SSL certificate: 
+    "tpaexec deploy (...) -e pem_web_server_renew_tls_certificates=true" and to renew the self-signed SSL 
+    certificate: "tpaexec deploy (...) -e tpa_tls_renew_tls_certificates=true").
+  type: minor_change
+  jira_tickets:
+  - TPA-1175

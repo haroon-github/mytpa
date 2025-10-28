@@ -1,0 +1,22 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Include pgd-proxy-pre-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/pgd-proxy-pre-update.yml"
+
+- name: Upgrade the pgd-proxy package
+  include_role:
+    name: pgd_proxy
+    tasks_from: upgrade.yml
+
+- name: Include pgd-proxy-post-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/pgd-proxy-post-update.yml"

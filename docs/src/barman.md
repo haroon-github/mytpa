@@ -66,16 +66,16 @@ are stored in the subdirectory `one` in the Barman home directory.
 The configuration file and directory names can be changed from the backed-up instance's
 `backup_name` setting defined on the `vars` section before the provisioning step.
 
-```yml
-    - Name: myPrimary
-      backup: myBarman
-      platform: bare
-      ip_address: x.x.x.x
-      node: 1
-      role:
-      - primary
-      vars:
-        backup_name: my_backup
+```yaml
+- Name: myPrimary
+  backup: myBarman
+  platform: bare
+  ip_address: x.x.x.x
+  node: 1
+  role:
+  - primary
+  vars:
+    backup_name: my_backup
 ```
 
 The following variables can be set on the backed-up instance and are
@@ -173,7 +173,7 @@ clusters is described below.
    specify the IP address of the Barman instance that this cluster can
    use to access it.
 
-    ```yml
+    ```yaml
     - Name: myBarman
       node: 5
       role:
@@ -190,20 +190,20 @@ clusters is described below.
    Barman server instance via `ssh-copy-id` and then do an ssh to
    make sure you can login without having to specify the password.
 
-    ```bash
+    ```shell
     # add first-cluster's key to the ssh-agent
-    $ cd $clusters/first-cluster
-    $ ssh-add id_first-clutser
-    $ cd $clusters/second-cluster
-    $ ssh-keyscan -t rsa,ecdsa -4 $barman-server-ip >> tpa_known_hosts
-    $ ssh-copy-id -i id_second-cluster.pub -o 'UserKnownHostsFile=tpa_known_hosts' $user@$barman-server-ip
-    $ ssh -F ssh_config $barman-server
+    cd $clusters/first-cluster
+    ssh-add id_first-clutser
+    cd $clusters/second-cluster
+    ssh-keyscan -t rsa,ecdsa -4 $barman-server-ip >> tpa_known_hosts
+    ssh-copy-id -i id_second-cluster.pub -o 'UserKnownHostsFile=tpa_known_hosts' $user@$barman-server-ip
+    ssh -F ssh_config $barman-server
     ```
 
 4. Copy the Barman user's keys from first-cluster to second-cluster
-    ```bash
-    $ mkdir $clusters/second-cluster/keys
-    $ cp $clusters/first-cluster/keys/id_barman* clusters/second-cluster/keys
+    ```shell
+    mkdir $clusters/second-cluster/keys
+    cp $clusters/first-cluster/keys/id_barman* clusters/second-cluster/keys
     ```
 5. Run `tpaexec deploy $clusters/second-cluster`
 

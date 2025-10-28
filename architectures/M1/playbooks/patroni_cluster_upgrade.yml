@@ -60,6 +60,8 @@
     include_role:
       name: barman
       tasks_from: server-stop-receive-wal.yml
+    vars:
+      target_backup_name: "{{ chosen_primary_backup_name }}"
 
 - name: Pause patroni cluster management
   any_errors_fatal: true

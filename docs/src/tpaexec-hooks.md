@@ -27,9 +27,11 @@ If you create files with specific names under the `hooks` subdirectory
 of your cluster directory, TPA will invoke them at various stages of
 the deployment process, as described below.
 
-```bash
-$ mkdir ~/clusters/speedy/hooks
-$ cat > ~/clusters/speedy/hooks/pre-deploy.yml
+```shell
+mkdir ~/clusters/speedy/hooks
+cat > ~/clusters/speedy/hooks/pre-deploy.yml
+```
+```output
 ---
 - debug: msg="hello world!"
 ```

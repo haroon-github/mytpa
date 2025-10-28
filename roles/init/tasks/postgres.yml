@@ -212,6 +212,7 @@
     pem_database: "{{ pem_database|default(default_pem_database) }}"
     pem_server_description: "{{ pem_server_description|default(inventory_hostname) }}"
     pem_server_group: "{{ pem_server_group|default(default_pem_server_group) }}"
+    pem_agent_group: "{{ pem_agent_group|default(default_pem_agent_group) }}"
     efm_bind_port: "{{ efm_bind_port|default(default_efm_bind_port) }}"
     replication_user: "{{ replication_user|default('replication') }}"
     replication_guard_slot_name: "tpa_tmp_higgs_boson_slot"
@@ -223,6 +224,7 @@
     ha_proxy_dhparams_key_size: "{{ ha_proxy_dhparams_key_size|default(default_ha_proxy_dhparams_key_size) }}"
     openvpn_rsa_key_size: "{{ openvpn_rsa_key_size|default(default_openvpn_rsa_key_size) }}"
     openvpn_dhparams_numbits_size: "{{ openvpn_dhparams_numbits_size|default(default_openvpn_dhparams_numbits_size) }}"
+    openssl_certificate_validity: "{{ openssl_certificate_validity|default(default_openssl_certificate_validity) }}"
   vars:
     default_postgres_installation_method: >-
       {{ postgres_installation_source|default('pkg') }}

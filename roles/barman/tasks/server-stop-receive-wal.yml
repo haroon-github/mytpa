@@ -6,17 +6,17 @@
   shell: |
     #"barman-home-ok" file allows barman-cron to run
     rm -f /etc/tpa/barman-home-ok
-    barman receive-wal --stop {{ chosen_primary }}
+    barman receive-wal --stop {{ target_backup_name }}
   ignore_errors: yes
 
 - name: Check if barman is running
   ignore_errors: yes
   shell: |
-    barman check {{ chosen_primary }} |grep receive-wal | grep -q 'running: OK'
+    barman check {{ target_backup_name }} |grep receive-wal | grep -q 'running: OK'
   register:
     barman_running
 
 - assert:
     that:
       barman_running.rc != 0
-    fail_msg: Barman is still running, if you're upgrading you could run `barman receive-wal --stop SERVER_NAME` before upgrading
+    fail_msg: "Barman is still running, if you're upgrading you could run `barman receive-wal --stop {{ target_backup_name }}` before upgrading"

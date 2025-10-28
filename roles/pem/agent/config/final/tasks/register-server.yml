@@ -22,7 +22,10 @@
       --pem-user "{{ pem_postgres_user }}"                             \
       --asb-host-db "{{ asb_host_db|default('postgres') }}"            \
       --remote-monitoring "{{ remote_monitoring|default('no') }}"      \
-      --group "{{ hostvars[pem_server].pem_server_group }}" \
+      --group "{{ monitoring_group | default(hostvars[pem_server].pem_server_group) }}" \
+      {% if monitoring_cluster is defined %} 
+      --cluster-name "{{ monitoring_cluster }}" \ 
+      {% endif %}
       --team "{{ monitoring_team |default('') }}"                      \
       --owner "{{ monitoring_server_owner |default('') }}"             \
       --config-dir "{{ pem_agent_config_path|dirname }}"               \
@@ -43,6 +46,9 @@
   when:
     not agent_cfg_check.stat.exists
   no_log: false
+  #  We should only do this operation one at a time because if it 
+  #  creates a group or cluster we can end up with duplicates
+  throttle: 1
 
 - name: Display stderr from failed server registration
   assert:
