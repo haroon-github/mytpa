@@ -1,0 +1,25 @@
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+
+name: Ansible collection update
+
+on:
+  workflow_dispatch:
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GH_SLONIK }}
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+
+jobs:
+
+  main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source repository
+        id: checkout-source
+        uses: actions/checkout@v5
+        with:
+          repository: EnterpriseDB/tpa-internal
+          token: ${{ env.GITHUB_TOKEN }}
+
