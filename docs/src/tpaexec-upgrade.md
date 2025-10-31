@@ -295,6 +295,31 @@ Your cluster is now running `PGD 6` with the `PGD-X` architecture and is
 fully manageable with both `tpaexec deploy` and `tpaexec upgrade` as
 usual.
 
+## PGD-S or PGD-X
+
+When upgrading an existing PGD6 (PGD-S or PGD-X) cluster to the latest available
+software versions, the upgrade process does the following:
+
+1. Checks that the cluster is healthy and that the nodes are listening
+   on the configured ports.
+2. Checks that the nodes to be upgraded have their repositories
+   configured and updated, including local repositories.
+3. Checks that updated packages can be installed
+4. Upgrade each BDR node in the cluster one at a time:
+
+    **Important:** To ensure high availability, if the write leader is among the
+    nodes being upgraded, it will be the very last node to be upgraded.
+
+    - Fences the node off so it doesn't accept connections
+    - Stops postgres
+    - Updates postgres and PGD packages
+    - Unfences the node so it can receive connections again
+    - Checks that the BDR cluster has re-established Raft consensus
+    - Checks that the upgraded node is listening on the configured ports
+
+5. Re-runs the cluster health checks
+6. Outputs information about the upgraded packages
+
 ## PGD-Always-ON
 
 When upgrading an existing PGD-Always-ON (PGD5) cluster to the latest available
