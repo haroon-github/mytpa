@@ -32,14 +32,18 @@
     changed_when: false
     register: pgd_check
 
-  - name: Verify that all pgd health checks succeeded
+  # In a perfect scenario, we expect all check status to be `Ok`. However, `Warning`s
+  # may occur during a rolling cluster upgrade (e.g. in the `Versions` check due to
+  # mixed versions). However, `Critical` issues should not be ignored.
+  - name: Verify that none of the pgd health checks report Critical
     assert:
       that: failed_checks is empty
       fail_msg: >-
-        `cluster show` returned not-Ok status for
-        {{ failed_checks|map(attribute='status')|list|join(', ') }}
+        `cluster show` returned Critical status for
+        {{ failed_checks|map(attribute='check')|list|join(', ') }}
     vars:
-      failed_checks: "{{ pgd_check.stdout|from_json|selectattr('status', '!=', 'Ok') | list }}"
+      failed_checks: >
+        {{ pgd_check.stdout|from_json|selectattr('status', 'equalto', 'Critical') }}
 
 # Check `pgd verify-settings` for bdr
 - block:
