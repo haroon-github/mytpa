@@ -1,0 +1,16 @@
+- summary: Support upgrade of components in BDR/PGD clusters
+  description: |
+    The software component versions can now be updated, either to a specific
+    version by specifying the component package version in `config.yml`
+    or to the latest available when it is not provided. A list of components
+    for upgrade can be passed to the `--components` flag as a comma-separated
+    list. If this flag is not passed, `postgres` will be updated. Speciyfing 
+    `--components=all` will update all applicable software components.
+  # Possible types: notable_change, minor_change, bugfix or breaking_change
+  type: notable_change
+  # At least one between jira_tickets or support_tickets must be defined. You
+  # can define both if you want
+  # You must have at least one list item in each *_tickets section that is
+  # defined
+  jira_tickets:
+  - TPA-927
