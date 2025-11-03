@@ -107,7 +107,7 @@
     - upgrade_selector|strict_selects('pem-server') or upgrade_selector|strict_selects('all')
     - can_upgrade_pem_server
 
-- name: Restart pemagent service on all PEM agents after server upgrade
+- name: Restart pemagent service on PEM agents after server upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
