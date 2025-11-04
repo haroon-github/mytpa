@@ -7,29 +7,12 @@ import boto3
 from . import CloudPlatform
 from ..exceptions import AWSPlatformError
 
+from tpa import constants
+
+
 AWS_DEFAULT_INSTANCE_TYPE = "t3.micro"
 AWS_DEFAULT_REGION = "eu-west-1"
 AWS_DEFAULT_VOLUME_DEVICE_NAME = "/dev/xvd"
-AWS_ZONES_PER_REGION = {
-    "ap-northeast-1": ["a", "b", "c", "d"],
-    "ap-northeast-2": ["a", "b", "c", "d"],
-    "ap-northeast-3": ["a", "b", "c"],
-    "ap-south-1": ["a", "b", "c"],
-    "ap-southeast-1": ["a", "b", "c"],
-    "ap-southeast-2": ["a", "b", "c"],
-    "ca-central-1": ["a", "b", "d"],  # !!!
-    "eu-central-1": ["a", "b", "c"],
-    "eu-north-1": ["a", "b", "c"],
-    "eu-west-1": ["a", "b", "c"],
-    "eu-west-2": ["a", "b", "c"],
-    "eu-west-3": ["a", "b", "c"],
-    "sa-east-1": ["a", "b", "c"],
-    "us-east-1": ["a", "b", "c", "d", "e", "f"],
-    "us-east-2": ["a", "b", "c"],
-    "us-west-1": ["a", "b", "c"],
-    "us-west-2": ["a", "b", "c", "d"],
-}
-
 
 class aws(CloudPlatform):
     def __init__(self, name, arch):
@@ -39,7 +22,7 @@ class aws(CloudPlatform):
 
     @property
     def zones_per_region(self):
-        return AWS_ZONES_PER_REGION
+        return constants.AWS_ZONES_PER_REGION
 
     @property
     def default_volume_device_group(self):
