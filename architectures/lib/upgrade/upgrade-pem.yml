@@ -16,7 +16,7 @@
 - import_playbook: "{{ tpa_dir }}/architectures/lib/dynamic_groups.yml"
   tags: always
 
-- name: Run clusterwide health check before upgrade
+- name: Run clusterwide checks before upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
@@ -24,10 +24,9 @@
   environment: "{{ target_environment }}"
   hosts: all
   tasks:  
-  - name: PEM health check # No-op right now, will discuss with Simon/PEM team what "health" means and how we can test against it.
-    debug:
-      msg: "ok"
-    when: "'pem-server' in role"
+  - name: Ensure upgrade is not invoked for a shared PEM cluster
+    fail: "Upgrading PEM is not supported for shared PEM servers"
+    when: (pem_shared|default(false)) is true
 
 - name: Check if edb-pem-agent version can be upgraded on PEM agents
   any_errors_fatal: true
@@ -122,16 +121,3 @@
     when: 
     - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
     - can_upgrade_pem_agent
-
-- name: Run post-upgrade health check for the cluster
-  any_errors_fatal: true
-  max_fail_percentage: 0
-  become_user: root
-  become: yes
-  environment: "{{ target_environment }}"
-  hosts: all
-  tasks:  
-  - name: PEM health check # No-op right now, will discuss with Simon/PEM team what "health" means and how we can test against it.
-    debug:
-      msg: "ok"
-    when: "'pem-server' in role"
