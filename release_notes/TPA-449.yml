@@ -6,10 +6,10 @@
 
     This has been fixed by implementing a proper certificate generation process. The
     Patroni REST API server is now configured with a server certificate signed by a
-    trusted Certificate Authority (CA). Additionally, the `ctl` section of the
-    `patroni.yml` configuration has been corrected to ensure `patronictl` is properly
-    configured to use the CA for server validation and to present its own client
-    certificate and key for authentication (mTLS).
+    Certificate Authority (CA) created by TPA for the TPA cluster. Additionally, the
+    `ctl` section of the `patroni.yml` configuration has been corrected to ensure
+    `patronictl` is properly configured to use the CA for server validation and to
+    present its own client certificate and key for authentication (mTLS).
 
     As a result, enabling SSL for the Patroni REST API now provides a fully secure and
     verifiable communication channel for all clients.
