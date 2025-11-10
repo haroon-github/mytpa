@@ -33,6 +33,14 @@
   when: >
     task_selector|permits('locale')
 
+- name: Include pre-deploy hook
+  include_tasks: "{{ hook }}"
+  when: >
+    lookup('first_found', dict(files=hook, skip=True))
+    and task_selector|selects('pre-deploy')
+  vars:
+    hook: "{{ cluster_dir }}/hooks/pre-deploy.yml"
+
 # Now we set up package repositories, including {apt,yum}_repositories
 # entries mentioned in {apt,yum}_repository_list (e.g., PGDG, EPEL), and
 # any EDB repositories we might need
