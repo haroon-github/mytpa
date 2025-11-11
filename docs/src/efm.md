@@ -27,9 +27,12 @@ for more details on EFM configuration.
 
 Must be either `scram-sha-256` or `md5`
 
-Set `efm_user_password_encryption` to control the `auth-method` for the 
-`efm` Postgres user's `auth-method` in `pg_hba.conf` as well as the algorithm 
-used when generating it's encrypted password.
+Set `efm_user_password_encryption` to control the `auth-method` for the
+`efm` Postgres user's `auth-method` in `pg_hba.conf` as well as the algorithm
+used when generating its encrypted password.
+
+!!! Note
+    The default value for `efm_user_password_encryption` is `scram-sha-256` for new clusters.
 
 ```yaml
 efm_user_password_encryption: 'scram-sha-256' # or can be set to `md5`

@@ -365,6 +365,13 @@ class M1(Architecture):
             }
         )
 
+        if failover_manager == "efm":
+            cluster_vars.update(
+                {
+                    "efm_user_password_encryption": "scram-sha-256",
+                }
+            )
+
         if self.args.get("efm_bind_by_hostname"):
             cluster_vars.update(
                 {
