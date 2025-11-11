@@ -1,0 +1,11 @@
+- summary: Improve automation of PGD5.9+ to PGD6 upgrade
+  description: |
+    For a PGD v5.9 to v6 migration, Connection Manager is a requirement
+    instead of PGD proxy. The new command `switch2cm` has been introduced to
+    facilitate this transition.
+    The new command requires that the cluster's config.yml must be prepared by
+    running `tpaexec reconfigure <cluster> --enable-connection-manager`.
+    https://www.enterprisedb.com/docs/tpa/latest/tpaexec-upgrade/#upgrading-from-pgd-always-on-to-pgd-x
+  type: notable_change
+  jira_tickets:
+  - TPA-1148

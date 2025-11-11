@@ -402,6 +402,15 @@ upgrade() {
     playbook commands/upgrade.yml "$@"
 }
 
+switch2cm() {
+    if [[ ! -d inventory ]]; then
+       error "No inventory found. Did you run 'tpaexec deploy $(pwd)'?"
+    fi
+
+    provision
+    playbook commands/switch2cm.yml "$@"
+}
+
 deprovision() {
     playbook "$TPA_DIR/platforms/deprovision.yml" "$@"
 }
@@ -608,6 +617,10 @@ Available help topics:
                 Perform a node-by-node upgrade of Postgres and related
                 components installed on a cluster (e.g, BDR, pglogical,
                 HARP, pgbouncer)
+
+    switch2cm
+                Switch a PGD 5.9+ cluster from pgd-proxy to the built-in
+                Connection Manager (required before upgrading to PGD 6)
 
     show-password
     store-password
@@ -979,6 +992,34 @@ Any options you specify will be passed through to ansible-playbook.
 DEPROVISION
             ;;
 
+        switch2cm)
+            cat <<SWITCH2CM
+Command: tpaexec switch2cm
+
+Switches a PGD 5.9+ cluster from using pgd-proxy to the built-in Connection
+Manager. This is a required step when upgrading from PGD 5 (PGD-Always-ON)
+to PGD 6 (PGD-X).
+
+The command performs the migration with minimal downtime by processing nodes
+one at a time. For each node, it fences the node, restarts PostgreSQL twice
+(once to load the Connection Manager configuration, then again after stopping
+pgd-proxy to allow Connection Manager to bind ports), waits for the Connection
+Manager to start listening, and unfences the node.
+
+Prerequisites:
+
+    - Cluster must be running PGD 5.9.0 or higher
+    - You must run 'tpaexec reconfigure --enable-connection-manager' first
+    - You must run 'tpaexec provision' after reconfigure to update inventory
+
+Synopsis:
+
+    tpaexec reconfigure clustername --enable-connection-manager
+    tpaexec provision clustername
+    tpaexec switch2cm clustername
+SWITCH2CM
+            ;;
+
         rebuild-sources)
             cat <<REBUILD-SOURCES
 Command: tpaexec rebuild-sources clustername
@@ -1095,7 +1136,7 @@ case "$command" in
         cd "$cluster"
         ;;
 
-    cmd|ping|provision|deploy|upgrade|deprovision)
+    cmd|ping|provision|deploy|upgrade|switch2cm|deprovision)
         cluster=${1:?No cluster specified}
         shift
 
@@ -1170,7 +1211,7 @@ case "$command" in
         time $command "$@"
         ;;
 
-    deploy|upgrade)
+    deploy|upgrade|switch2cm)
         time $command "$@"
         real_exit_status=$?
         exit $real_exit_status

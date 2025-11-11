@@ -165,31 +165,26 @@ Before you begin, ensure you have met the following requirements:
 
 -   **Co-hosted Proxies:** Your `PGD 5` cluster must be configured with
     co-hosted proxies (where the `pgd-proxy` role is on the same
-    instance as the `bdr` role). Standalone proxy instances are **not
-    supported** by this upgrade path.
+    instance as the `bdr` role). The presence of standalone proxy
+    instances will cause the `switch2cm` command to abort. You must
+    remove standalone proxy instances from your cluster before
+    proceeding with the migration.
 
 ### Stage 1: Migrating to the Built-in Connection Manager
 
 The first stage is to reconfigure your `PGD 5.9+` cluster to switch
 from using the external `pgd-proxy` to the modern, built-in
-`Connection Manager`.
+`Connection Manager`. TPA provides the `tpaexec switch2cm` command to
+automate this migration with minimal downtime.
 
 !!! Note Transitional State Only
 
 This process creates a transitional `PGD 5.9+` cluster state that is
 intended only as an intermediate step before upgrading to `PGD 6`.
-TPA does not currently support using `tpaexec upgrade` on this
-specific `Connection Manager` configuration. A future TPA release
-will fully support lifecycle management of `PGD 5` with
+TPA does not currently support staying in `PGD5.9+` with `Connection Manager`
+enabled or moving to a newer minor version of `PGD5.9+` with this configuration.
+A future TPA release will fully support lifecycle management of `PGD 5` with
 `Connection Manager`.
-!!!
-
-!!! Warning Significant Manual Operations Required
-
-This stage involves significant manual intervention on your live
-cluster to apply the configuration changes. If you are not
-comfortable performing these steps, we recommend waiting for a
-future TPA release that will fully automate this process.
 !!!
 
 #### Step 1.1: Reconfigure for Connection Manager
@@ -211,16 +206,30 @@ command's own documentation](tpaexec-reconfigure.md).
 tpaexec reconfigure ~/clusters/speedy --enable-connection-manager
 ```
 
-#### Step 1.2: Apply the Configuration and Activate Connection Manager
+#### Step 1.2: Switch to Connection Manager
 
-Apply the configuration changes to your live cluster. This is a
-**manual** operational task that involves, adding Postgres configuration
-parameter, stopping the `pgd-proxy` service and restarting `PostgreSQL`
-nodes in a rolling fashion to activate the `Connection Manager`.
+Run the `tpaexec switch2cm` command to perform the migration from
+`pgd-proxy` to the built-in `Connection Manager`. This command
+automatically runs `tpaexec provision` to update the Ansible inventory,
+then switches all nodes with minimal downtime:
 
-For the detailed, step-by-step instructions for this process, please
-follow the official [Connection Manager Migration
-Guide](https://www.enterprisedb.com/docs/pgd/latest/upgrades/manual_overview/#pgd-5---moving-from-pgd-proxy-to-connection-manager).
+```shell
+tpaexec switch2cm ~/clusters/speedy
+```
+
+The `switch2cm` command performs the following operations:
+
+1. Updates the Ansible inventory with Connection Manager settings
+2. For each node:
+   - Fences the node to prevent new connections
+   - Restarts PostgreSQL to load the Connection Manager configuration
+   - Stops the `pgd-proxy` service
+   - Restarts PostgreSQL again to allow Connection Manager to bind ports
+   - Waits for Connection Manager to start listening
+   - Unfences the node and verifies connectivity
+
+This process follows the official [EDB Connection Manager Migration
+procedure](https://www.enterprisedb.com/docs/pgd/latest/upgrades/manual_overview/#pgd-5---moving-from-pgd-proxy-to-connection-manager).
 
 ### Stage 1 Complete
 

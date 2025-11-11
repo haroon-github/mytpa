@@ -1,0 +1,306 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- import_playbook: "{{ tpa_dir }}/architectures/lib/init.yml"
+  tags: always
+
+# Preconditions check
+- name: Check preconditions for proxy to connection manager switch
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_bdr
+  tasks:
+
+  - name: Check for standalone pgd-proxy instances
+    set_fact:
+      standalone_pgd_proxies: "{{ groups['role_pgd-proxy']|default([])|difference(groups['role_bdr']|default([])) }}"
+    run_once: true
+
+  - name: Abort if standalone pgd-proxy instances are present
+    fail:
+      msg: >-
+        Standalone pgd-proxy instances detected: {{ standalone_pgd_proxies|join(', ') }}.
+        The switch2cm command does not support standalone proxy instances.
+        Please remove these instances from your cluster before running this command.
+    when: standalone_pgd_proxies|length > 0
+    run_once: true
+
+  - name: Collect list of all unique BDR version numbers from all nodes
+    set_fact:
+      all_bdr_version_nums: "{{ _version_nums.values()|list }}"
+    vars:
+      _version_nums:
+        "{{ groups['role_bdr']|bdr_node_version_nums(hostvars) }}"
+    run_once: true
+
+  - name: Ensure cluster is running PGD 5.9.0 or higher
+    assert:
+      that: all_bdr_version_nums|select('version', '50900', '<')|list is empty
+      fail_msg: Please upgrade to PGD 5.9.0+ before running this command.
+    when:
+      inventory_hostname == first_bdr_primary
+
+  # transmogrifiers/pgdproxy_cm.py adds postgres_conf_settings and bdr.enable_builtin_connection_manager
+  - name: Ensure connection manager is present in configuration
+    assert:
+      that:
+        - postgres_conf_settings is defined
+        - postgres_conf_settings.get('bdr.enable_builtin_connection_manager', 'false')|lower == 'true'
+      fail_msg: >-
+        The configuration does not have Connection Manager present.
+        Please run: tpaexec reconfigure {{ cluster_dir }} --enable-connection-manager
+    when:
+      inventory_hostname == first_bdr_primary
+
+  - name: Verify pgd-proxy role has been removed from configuration
+    assert:
+      that: "'pgd-proxy' not in role"
+      fail_msg: >-
+        This instance still has the pgd-proxy role in config.yml.
+        Please run: tpaexec reconfigure {{ cluster_dir }} --enable-connection-manager
+    when:
+      "'bdr' in role"
+
+# Prepare proxy to connection manager shift
+- name: Prepare proxy to connection manager shift
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  environment: "{{ target_environment }}"
+  hosts: role_bdr:!role_witness
+  tasks:
+
+  - name: Set BDR database facts
+    set_fact:
+      bdr_database_facts: "{{ cluster_facts.databases[bdr_database] }}"
+
+  - name: Enable subgroup raft for BDR node groups, if necessary
+    include_role:
+      name: postgres/bdr
+      tasks_from: bdr5/alter_node_group_option.yml
+    with_items: "{{ bdr_node_groups }}"
+    loop_control:
+      label: >-
+        {{ item.name }}:{{ enable_raft }}
+    vars:
+      node_group_name: "{{ item.name }}"
+      config_key: enable_raft
+      config_value: "{{ enable_raft }}"
+      enable_raft:
+        "{{ item|try_subkey('options.enable_raft', False)|bool }}"
+      this_group_facts:
+        "{{ bdr_database_facts.bdr.node_group_summary
+            |selectattr('node_group_name', 'equalto', item.name)
+            |list }}"
+    when:
+      - inventory_hostname == first_bdr_primary
+      - item.name != bdr_node_group
+      - enable_raft is true
+      - this_group_facts is empty
+        or this_group_facts[0].enable_raft is false
+
+  - name: Set BDR node group options for each group
+    include_role:
+      name: postgres/bdr
+      tasks_from: bdr5/alter_node_group_options.yml
+    with_items: "{{ bdr_node_groups }}"
+    loop_control:
+      loop_var: node_group
+    when:
+      - inventory_hostname == first_bdr_primary
+
+  # Finally, we can `enable_proxy_routing` for those groups where it's
+  # desired and for which subgroup RAFT is also enabled.
+
+  - name: Enable or disable proxy routing for BDR node groups, if necessary
+    include_role:
+      name: postgres/bdr
+      tasks_from: bdr5/alter_node_group_option.yml
+    with_items: "{{ bdr_node_groups }}"
+    loop_control:
+      label: >-
+        {{ item.name }}:{{ enable_proxy_routing }}
+    vars:
+      node_group_name: "{{ item.name }}"
+      config_key: enable_proxy_routing
+      config_value: "{{ enable_proxy_routing }}"
+      enable_raft:
+        "{{ item|try_subkey('options.enable_raft', False)|bool }}"
+      enable_proxy_routing:
+        "{{ item|try_subkey('options.enable_proxy_routing', False)|bool }}"
+      this_group_facts:
+        "{{ bdr_database_facts.bdr.node_group_summary
+            |selectattr('node_group_name', 'equalto', item.name)
+            |list }}"
+    when:
+      - inventory_hostname == first_bdr_primary
+      - enable_raft is true
+        or item.name == bdr_node_group
+      - this_group_facts is empty
+        or this_group_facts[0].enable_proxy_routing != enable_proxy_routing
+
+  - name: Generate configuration based on postgres_conf_settings
+    template:
+      src: "{{ tpa_dir }}/roles/postgres/config/templates/settings.conf.j2"
+      dest: "{{ postgres_conf_dir }}/conf.d/9900-tpa_postgres_conf_settings.conf"
+      owner: "{{ postgres_user }}"
+      group: "{{ postgres_group }}"
+      mode: "0644"
+    when:
+      - postgres_conf_settings is defined
+      - postgres_conf_settings
+
+# Switch read-only/replica nodes first to minimize downtime
+- name: Switch proxy to connection manager on read-only/replica nodes
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  environment: "{{ target_environment }}"
+  serial: 1
+  hosts: role_bdr:&(role_replica:role_readonly:role_subscriber-only)
+  tasks:
+
+  - name: Fence the node
+    include_role:
+      name: postgres/bdr
+      tasks_from: fence.yml
+    vars:
+      failover_manager: 'pgd'
+
+  # We need to restart twice to follow the official upgrade procedure
+  # https://www.enterprisedb.com/docs/pgd/latest/upgrades/manual_overview/#pgd-5---moving-from-pgd-proxy-to-connection-manager
+  - name: Restart postgres service to enable connection manager
+    service:
+      name: postgres
+      state: restarted
+
+  - name: Stop pgd-proxy service
+    service:
+      name: pgd-proxy
+      state: stopped
+    ignore_errors: yes  # Service may not exist if already removed
+
+  - name: Final Postgres restart after proxy stop
+    service:
+      name: postgres
+      state: restarted
+
+  - name: Compute read_write_port to use
+    set_fact:
+      this_read_write_port: "{{ group_port[0] if (group_port|length > 0) else top_port[0] }}"
+    vars:
+      this_node_group: "{{ cluster_facts['databases'][bdr_database]['bdr']['local_node']['nodegroup_name'] }}"
+      this_node_top_group: "{{cluster_facts['databases'][bdr_database]['bdr']['local_node']['node_topgroup_name']}}"
+      top_port: "{{ bdr_node_groups|selectattr('name','equalto',this_node_top_group)|map(attribute='options')|selectattr('read_write_port','defined')|map(attribute='read_write_port')|list }}"
+      group_port: "{{ bdr_node_groups|selectattr('name','equalto',this_node_group)|map(attribute='options')|selectattr('read_write_port','defined')|map(attribute='read_write_port')|list }}"
+
+  - name: Wait for connection manager port to be listening
+    ansible.builtin.wait_for:
+      host: "{{ inventory_hostname }}"
+      port: "{{ this_read_write_port|int }}"
+      state: started
+      timeout: 60
+      delay: 10
+
+  - name: Unfence the node
+    postgresql_query:
+      conninfo: "{{ dsn|dbname(bdr_database) }}"
+      queries:
+        - text: >
+            select 1 from bdr.alter_node_option(
+              node_name := '{{ inventory_hostname }}',
+              config_key := 'route_fence',
+              config_value := 'false'
+              );
+    register: unfence_result
+    become_user: "{{ postgres_user }}"
+    become: true
+
+  - name: Verify that the connection manager is accepting connections
+    postgresql_query:
+      conninfo: "host={{ inventory_hostname }} port={{ this_read_write_port|int }} dbname={{ bdr_database }} user={{ postgres_user }}"
+      queries:
+        - text: SELECT bdr.bdr_version();
+    register: bdr_version_result
+    become_user: "{{ postgres_user }}"
+    become: true
+    retries: 5
+    delay: 10
+
+# Switch write-capable nodes last to minimize write unavailability
+- name: Switch proxy to connection manager on write-capable nodes
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  environment: "{{ target_environment }}"
+  serial: 1
+  hosts: role_bdr:!role_witness:!role_replica:!role_readonly:!role_subscriber-only
+  tasks:
+
+  - name: Fence the node
+    include_role:
+      name: postgres/bdr
+      tasks_from: fence.yml
+    vars:
+      failover_manager: 'pgd'
+
+  # We need to restart twice to follow the official upgrade procedure
+  # https://www.enterprisedb.com/docs/pgd/latest/upgrades/manual_overview/#pgd-5---moving-from-pgd-proxy-to-connection-manager
+  - name: Restart postgres service to enable connection manager
+    service:
+      name: postgres
+      state: restarted
+
+  - name: Stop pgd-proxy service
+    service:
+      name: pgd-proxy
+      state: stopped
+    ignore_errors: yes  # Service may not exist if already removed
+
+  - name: Final Postgres restart after proxy stop
+    service:
+      name: postgres
+      state: restarted
+
+  - name: Compute read_write_port to use
+    set_fact:
+      this_read_write_port: "{{ group_port[0] if (group_port|length > 0) else top_port[0] }}"
+    vars:
+      this_node_group: "{{ cluster_facts['databases'][bdr_database]['bdr']['local_node']['nodegroup_name'] }}"
+      this_node_top_group: "{{cluster_facts['databases'][bdr_database]['bdr']['local_node']['node_topgroup_name']}}"
+      top_port: "{{ bdr_node_groups|selectattr('name','equalto',this_node_top_group)|map(attribute='options')|selectattr('read_write_port','defined')|map(attribute='read_write_port')|list }}"
+      group_port: "{{ bdr_node_groups|selectattr('name','equalto',this_node_group)|map(attribute='options')|selectattr('read_write_port','defined')|map(attribute='read_write_port')|list }}"
+
+  - name: Wait for connection manager port to be listening
+    ansible.builtin.wait_for:
+      host: "{{ inventory_hostname }}"
+      port: "{{ this_read_write_port|int }}"
+      state: started
+      timeout: 60
+      delay: 10
+
+  - name: Unfence the node
+    postgresql_query:
+      conninfo: "{{ dsn|dbname(bdr_database) }}"
+      queries:
+        - text: >
+            select 1 from bdr.alter_node_option(
+              node_name := '{{ inventory_hostname }}',
+              config_key := 'route_fence',
+              config_value := 'false'
+              );
+    register: unfence_result
+    become_user: "{{ postgres_user }}"
+    become: true
+
+  - name: Verify that the connection manager is accepting connections
+    postgresql_query:
+      conninfo: "host={{ inventory_hostname }} port={{ this_read_write_port|int }} dbname={{ bdr_database }} user={{ postgres_user }}"
+      queries:
+        - text: SELECT bdr.bdr_version();
+    register: bdr_version_result
+    become_user: "{{ postgres_user }}"
+    become: true
+    retries: 5
+    delay: 10
