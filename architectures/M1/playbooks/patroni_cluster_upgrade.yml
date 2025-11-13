@@ -2,16 +2,73 @@
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
-- name: Initial checks and setup
+- name: Run clusterwide health check for common components before upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
   hosts: all
+  tasks: 
+  - name: Run Patroni checks
+    when: 
+    - inventory_hostname == chosen_primary
+    - fo_manager == "patroni"
+    block:
+      - include_role:
+          name: test
+          tasks_from: patroni/basic.yml
+      - include_role:
+          name: test
+          tasks_from: patroni/pending-restart.yml
+
+  - name: Run etcd checks
+    include_role:
+      name: test
+      tasks_from: etcd/check-health.yml
+    loop: "{{ groups['role_etcd'] }}"
+    when:
+    - inventory_hostname == item
+
+  - name: Run PgBouncer checks  
+    include_role:
+      name: test
+      tasks_from: pgbouncer/basic.yml
+    when: >
+      'pgbouncer' in role
+
+  # TODO: Run PEM checks (when PEM work is merged)
+
+  - name: Run pg-backup-api checks
+    include_role:
+      name: test
+      tasks_from: pg-backup-api.yml
+    when: 
+    - "'barman' in role"
+    - enable_pg_backup_api|default(false)  
+
+  - name: Run Barman checks
+    when: "'barman' in role"
+    block:
+    - include_role:
+        name: barman
+        tasks_from: server-start-receive-wal.yml
+    - include_role:
+          # This will stop the WAL receiver as we do not want any scheduled
+          # backup jobs to begin during the upgrade
+        name: barman/update
+        tasks_from: health-check.yml
+      vars:
+        target_backups: "{{ barman_backed_nodes|default([]) }}"
+
+- name: Update repository configuration, if required
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: "{{ update_hosts|default('all') }}"
   tasks:
-
-
   - name: Configure local-repo, if available
     include_role:
       name: sys/local_repo
@@ -20,11 +77,8 @@
     include_role:
       name: sys/repositories
 
-  - assert:
-      that:
-        failover_manager == 'patroni'
-      fail_msg:
-        This upgrade scenario is for patroni only
+- name: Check if all desired components are able to be upgraded
+  import_playbook: "{{ tpa_dir }}/architectures/M1/check-upgrade-components.yml"
 
 - name: Patroni checks
   any_errors_fatal: true
@@ -48,22 +102,7 @@
         |selectattr('Role', 'equalto', 'Replica')|list
         |length == 1
 
-- name: Run checks on barman nodes, if any
-  any_errors_fatal: true
-  max_fail_percentage: 0
-  become_user: root
-  become: yes
-  environment: "{{ target_environment }}"
-  hosts: role_barman
-  tasks:
-  - name: Stop wal receiver on barman nodes
-    include_role:
-      name: barman
-      tasks_from: server-stop-receive-wal.yml
-    vars:
-      target_backup_name: "{{ chosen_primary_backup_name }}"
-
-- name: Pause patroni cluster management
+- name: Put Patroni cluster into maintenance mode before upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
@@ -71,18 +110,22 @@
   environment: "{{ target_environment }}"
   hosts: g_chosen_primary
   tasks:
+  - when:
+    # - upgrade_selector|strict_selects('etcd') or upgrade_selector|strict_selects('patroni') or upgrade_selector|strict_selects('all')
+    - fo_manager == "patroni"
+    # - can_upgrade_patroni or can_upgrade_etcd
+    block:
+    - name: Pause cluster management
+      include_role:
+        name: patroni/api
+        tasks_from: config
+      vars:
+        body:
+          pause: true
 
-  - name: Pause cluster management
-    include_role:
-      name: patroni/api
-      tasks_from: config
-    vars:
-      body:
-        pause: true
-
-  - name: Check cluster is paused
-    assert:
-      that: patroni_config_api_output.json.pause|default(false)
+    - name: Check Patroni management is paused for the cluster
+      assert:
+        that: patroni_config_api_output.json.pause|default(false)
 
 - name: Update Postgres on replicas
   any_errors_fatal: true
@@ -93,13 +136,17 @@
   environment: "{{ target_environment }}"
   hosts: role_replica:&g_update_hosts
   tasks:
-
-  - name: Update postgres on replica {{ inventory_hostname }}
-    include_role:
-      name: postgres/update
-  - name: Restart postgres on {{ inventory_hostname }} if necessary
-    include_role:
-      name: postgres/restart
+  - name: "Upgrade Postgres on {{ inventory_hostname }}"
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
+    block:
+    - name: Update postgres on replica {{ inventory_hostname }}
+      include_role:
+        name: postgres/update
+    - name: Restart postgres on {{ inventory_hostname }} if necessary
+      include_role:
+        name: postgres/restart
 
 # if the switchover fails, the upgrade process will stop
 
@@ -120,6 +167,9 @@
       body:
         leader: "{{ chosen_primary }}"
         candidate: "{{ chosen_replica }}"
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
 
 - name: Upgrade postgres on chosen_primary
   any_errors_fatal: true
@@ -129,14 +179,17 @@
   environment: "{{ target_environment }}"
   hosts: g_chosen_primary:&g_update_hosts
   tasks:
-
-  - name: Update postgres on original primary {{ inventory_hostname }}
-    include_role:
-      name: postgres/update
-
-  - name: Restart postgres on {{ inventory_hostname }} if necessary
-    include_role:
-      name: postgres/restart
+  - name: "Upgrade Postgres on {{ inventory_hostname }}"
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
+    block:
+    - name: Update postgres on original primary {{ inventory_hostname }}
+      include_role:
+        name: postgres/update
+    - name: Restart postgres on {{ inventory_hostname }} if necessary
+      include_role:
+        name: postgres/restart
 
 - name: Switchover back to chosen_primary
   any_errors_fatal: true
@@ -155,6 +208,39 @@
       body:
         leader: "{{ chosen_replica }}"
         candidate: "{{ chosen_primary }}"
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
+
+- name: Upgrade etcd
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_etcd:&g_update_hosts
+  serial: 1
+  tasks:
+  - include_role: name=etcd/update
+    when: 
+    - upgrade_selector|strict_selects('etcd') or upgrade_selector|strict_selects('all')
+    - fo_manager == "patroni"
+    - can_upgrade_etcd
+    
+- name: Upgrade Patroni
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_postgres:&g_update_hosts
+  serial: 1
+  tasks:
+  - include_role: name=patroni/update
+    when: 
+    - upgrade_selector|strict_selects('patroni') or upgrade_selector|strict_selects('all')
+    - fo_manager == "patroni"
+    - can_upgrade_patroni
 
 - name: Resume patroni management
   any_errors_fatal: true
@@ -177,15 +263,97 @@
     assert:
       that: not patroni_config_api_output.json.pause
 
-- name: Start receiving wals on barman nodes
+- name: Upgrade PgBouncer
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_barman
+  hosts: role_pgbouncer:&g_update_hosts
   tasks:
-  - name: Starting barman tasks
+  - include_role: name=pgbouncer/update
+    when:
+    - upgrade_selector|strict_selects('pgbouncer') or upgrade_selector|strict_selects('all')
+    - can_upgrade_pgbouncer
+
+- name: Upgrade Barman
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_barman:&g_update_hosts
+  tasks:
+  - include_role: name=barman/update
+    vars:
+      target_backups: "{{ barman_backed_nodes|default([]) }}"
+    when: 
+    - upgrade_selector|strict_selects('barman') or upgrade_selector|strict_selects('all')
+    - can_upgrade_barman
+
+- name: Upgrade PG Backup API
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_barman:&g_update_hosts
+  tasks:
+  - include_role: name=pgbackupapi/update
+    when: 
+    - upgrade_selector|strict_selects('pg-backup-api') or upgrade_selector|strict_selects('all')
+    - enable_pg_backup_api|default(false)
+    - can_upgrade_pg_backup_api
+
+- name: Run post-upgrade health check for the cluster
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: all
+  tasks: 
+  - name: Run Patroni checks
+    include_role:
+      name: test
+      tasks_from: patroni/basic.yml
+    when: 
+    - inventory_hostname == chosen_primary
+    - fo_manager == "patroni"
+
+  - name: Run etcd checks
+    include_role:
+      name: test
+      tasks_from: etcd/check-health.yml
+    loop: "{{ groups['role_etcd'] }}"
+    when:
+    - inventory_hostname == item
+
+  - name: Start WAL receiver on barman nodes if Barman version upgrade was skipped.
     include_role:
       name: barman
       tasks_from: server-start-receive-wal.yml
+    when: 
+    - "'barman' in role"
+    - not (can_upgrade_barman|default(false))
+
+  - name: Run Barman checks
+    include_role: 
+      name: test
+      tasks_from: barman/basic.yml
+    when: >
+      'barman' in role
+  
+  - name: Run pg-backup-api checks
+    include_role:
+      name: test
+      tasks_from: pg-backup-api.yml
+    when: 
+    - "'barman' in role"
+    - enable_pg_backup_api|default(False)|bool
+
+  - name: Run PgBouncer checks
+    include_role: 
+      name: test
+      tasks_from: pgbouncer/basic.yml
+    when: "'pgbouncer' in role"
