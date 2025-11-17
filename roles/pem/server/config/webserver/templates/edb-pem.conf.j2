@@ -11,12 +11,6 @@ WSGIProcessGroup {{ pem_web_server_process_name }}
         Require all granted
 </Directory>
 
-# ReWrite rule for disable the request
-<IfModule mod_rewrite.c>
-        RewriteEngine on
-        RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK|OPTIONS)
-        RewriteRule .* - [F]
-</IfModule>
 <IfModule mod_headers.c>
         Header unset X-Forwarded-Host
         Header edit Location "(^http[s]?://)([a-zA-Z0-9\.\-]+)(:\d+)?/" "/"
