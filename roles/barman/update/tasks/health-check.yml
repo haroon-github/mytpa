@@ -6,7 +6,7 @@
     name: test
     tasks_from: barman/basic.yml
 
-- name: Stop wal receiver on barman nodes
+- name: Stop wal-receiver on barman nodes before checking in-progress backup jobs
   include_role:
     name: barman
     tasks_from: server-stop-receive-wal.yml

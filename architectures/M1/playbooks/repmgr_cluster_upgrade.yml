@@ -2,71 +2,98 @@
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
-- name: Starting system level checks and repo setup
+# We must check that 'tpaexec upgrade' is not run on a cluster 
+# that uses shared PEM or share Barman 
+# ('pem_shared' or 'barman_shared' are 'true') in the 'config.yml'
+- name: Import upgrade precondition checks
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/upgrade_preconditions.yml"
+
+# This check must run before the common-component health-checks,
+# since 'repmgr node check' will check if the backup slot on the
+# primary is active (and fail otherwise). This requires the Barman 
+# WAL-receiver to be running, but it is stopped as part of the
+# 'pre_upgrade_checks.yml' tasks before checking no Barman backup
+# jobs are currently underway.
+- name: Run repmgr-specific health checks before upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
-  become: yes
-  environment: "{{ target_environment }}"
-  hosts: all
-  tasks:
-  - assert:
-      that:
-        failover_manager == 'repmgr'
-      fail_msg:
-        This upgrade scenario is for repmgr only
-
-  - name: Set up repositories
-    include_role:
-      name: sys/repositories
-
-  - name: Configure local-repo, if available
-    include_role:
-      name: sys/local_repo
-
-- name: Tests running repmgr on the nodes
-  any_errors_fatal: true
-  max_fail_percentage: 0
-  become_user: "{{ postgres_user }}"
   become: yes
   environment: "{{ target_environment }}"
   hosts: role_postgres:role_primary:!role_pem-server
   tasks:
-  - name: Check repmgr status
+  - name: Run repmgr checks
     include_role:
       name: test
       tasks_from: repmgr.yml
+    when: fo_manager == "repmgr"
 
-- name: Run checks on barman nodes, if any
+# Ascertain the status/health of PgBouncer, pg-backup-api and Barman BEFORE upgrade
+# If any fail, the upgrade playbook will bail out.
+# NOTE: The Barman WAL-receiver is stopped after this play is run,
+# as we do not want new backup jobs to start mid-upgrade.
+- name: Import pre-upgrade common-component health-checks
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/pre_upgrade_checks.yml"
+
+# Ensure repositories are up-to-date before checking against component
+# software versions that can be installed.
+- name: Import repository update
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/repository_update.yml"
+
+# Ensure any selected component software versions are not currently installed
+# or are not able to be resolved (determined by the package manager in 'dry-run' mode)
+- name: Check if all desired common-components are able to be upgraded
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/check_upgrade_components.yml"
+
+- name: Check if repmgr version can be upgraded
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_barman
+  hosts: role_postgres:!role_pem-server
   tasks:
-  - name: Stop wal receiver on barman nodes
-    include_role:
-      name: barman
-      tasks_from: server-stop-receive-wal.yml
-    vars:
-      target_backup_name: "{{ chosen_primary_backup_name }}"
+  - when:
+    - upgrade_selector|strict_selects('repmgr') or upgrade_selector|strict_selects('all')
+    - fo_manager == "repmgr"
+    block:
+    - name: Check if repmgr can be updated to specified version  
+      include_role:
+        name: repmgr/pkg
+        tasks_from: check-update.yml
+      when: repmgr_package_version is defined
 
-# start of postgres minor upgrade process
-- name: Stop repmgrd
+    - set_fact:
+        can_upgrade_repmgr: "{{ repmgr_package_update | default(true) }}"
+
+- name: Pause repmgr management for the cluster before upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_postgres:!role_pemserver
+  hosts: g_chosen_primary
   tasks:
+  - include_role:
+      name: repmgr/service
+      tasks_from: pause.yml
 
-  - name: Stop repmgr
-    service:
-      name: repmgr
-      state: stopped
-
+- name: Upgrade repmgr on nodes
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_postgres:&g_update_hosts:!role_pem-server
+  serial: 1
+  tasks:
+  - name: Upgrade repmgr
+    include_role: name=repmgr/update
+    when:
+    - upgrade_selector|strict_selects('repmgr') or upgrade_selector|strict_selects('all')
+    - fo_manager == "repmgr"
+    - can_upgrade_repmgr
+    
 - name: Rolling minor Postgres upgrade for Replica and Witness
   any_errors_fatal: true
   max_fail_percentage: 0
@@ -76,12 +103,13 @@
   hosts: role_replica:role_witness:&g_update_hosts
   serial: 1
   tasks:
-
   # replica and witness upgrade
-  - name: Upgrade replicas and witnesses
+  - name: Upgrade Postgres on replicas and witnesses
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
     block:
     - include_role: name=postgres/update
-
     - include_role: name=postgres/restart
 
 # switchover to make primary a replica before upgrading it
@@ -91,9 +119,8 @@
   become_user: "{{ postgres_user }}"
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_replica[0]
+  hosts: g_chosen_replica
   tasks:
-
   - name: Switchover to {{ chosen_replica }}
     command: >
       {{ postgres_bin_dir }}/repmgr standby switchover --verbose -f {{ repmgr_conf_file }} --siblings-follow
@@ -109,7 +136,6 @@
   environment: "{{ target_environment }}"
   hosts: role_pgbouncer
   tasks:
-
   # but don't run it at all if primary is not in the update_hosts
   - name: Redirect PGBouncer
     when:
@@ -129,12 +155,14 @@
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_primary:&g_update_hosts
+  hosts: g_chosen_primary:&g_update_hosts
   tasks:
-
-  - include_role: name=postgres/update
-
-  - include_role: name=postgres/restart
+  - when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
+    block:
+    - include_role: name=postgres/update
+    - include_role: name=postgres/restart
 
   # switchover to revert to starting primary
   # only when primary is part of the update_hosts or all nodes in the play
@@ -146,7 +174,6 @@
   environment: "{{ target_environment }}"
   hosts: role_primary:!role_pem-server:&g_update_hosts
   tasks:
-
   - name: Switchover to the initial primary {{ chosen_primary }}
     command: >
       {{ postgres_bin_dir }}/repmgr standby switchover --verbose -f {{ repmgr_conf_file }} --siblings-follow
@@ -159,7 +186,6 @@
   environment: "{{ target_environment }}"
   hosts: role_pgbouncer
   tasks:
-
   # only redirect if primary was upgraded
   - name: Redirect PGBouncer
     when:
@@ -170,45 +196,50 @@
       new_primary: "{{ chosen_primary }}"
       revert_redirect: true
 
-# restart repmgrd
-- name: Start repmgrd
+# This will update PgBouncer, pg-backup-api, Barman, PEM server and PEM agent 
+# if they are selected components and their packages are able to be upgraded. 
+# Otherwise, their respective upgrade plays are skipped.
+- name: Update all desired common cluster components that are able to be upgraded
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/components_upgrade.yml"
+
+- name: Unpause repmgr management for the cluster
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_postgres
+  hosts: g_chosen_primary
   tasks:
+  - include_role:
+      name: repmgr/service
+      tasks_from: unpause.yml
+    vars:
+      # It's important to wait a few seconds after restarting PostgreSQL 
+      # on any node before running repmgr service pause/unpause, as the 
+      # repmgrd instance on the restarted node will take a second or two 
+      # before it has updated its status. Here we let the unpause task
+      # know to wait 5 seconds before running after the repmgr upgrade play 
+      # is run, since it restarts Postgres on each node.
+      delay: 5
 
-  - name: Start repmgrd
-    service:
-      name: repmgr
-      state: started
+# Ascertain the status/health of PgBouncer, pg-backup-api and Barman AFTER upgrade
+# If any fail, the upgrade playbook will bail out.
+# NOTE: The Barman WAL-receiver is started after this play is run,
+# since we stopped it as part of the pre-upgrade checks. It may have already
+# been started if Barman was upgraded (which makes the service start here a no-op)
+- name: Import post-upgrade health-checks for common components in the cluster
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/post_upgrade_checks.yml"
 
-# End of minor postgres upgrade
-
-- name: Start receiving wals on barman nodes
+- name: Run repmgr-specific health checks after upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
-  become: yes
-  environment: "{{ target_environment }}"
-  hosts: role_barman
-  tasks:
-  - name: Starting barman tasks
-    include_role:
-      name: barman
-      tasks_from: server-start-receive-wal.yml
-
-- name: Final tests running repmgr on the nodes
-  any_errors_fatal: true
-  max_fail_percentage: 0
-  become_user: "{{ postgres_user }}"
   become: yes
   environment: "{{ target_environment }}"
   hosts: role_postgres:role_primary:!role_pem-server
   tasks:
-  - name: Check repmgr status
+  - name: Run repmgr checks
     include_role:
       name: test
       tasks_from: repmgr.yml
+    when: fo_manager == "repmgr"

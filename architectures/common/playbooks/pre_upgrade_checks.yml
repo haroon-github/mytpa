@@ -1,0 +1,42 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Run clusterwide health check for common components before upgrade
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: all
+  tasks:
+  - name: Run PgBouncer checks  
+    include_role:
+      name: test
+      tasks_from: pgbouncer/basic.yml
+    when: >
+      'pgbouncer' in role
+
+  - name: Run pg-backup-api checks
+    include_role:
+      name: test
+      tasks_from: pg-backup-api.yml
+    when: 
+    - "'barman' in role"
+    - enable_pg_backup_api|default(false)  
+
+  - name: Run Barman checks
+    when: "'barman' in role"
+    block:
+    - name: Start the WAL-receiver before checking Barman health (some checks require it to be running)
+      include_role:
+        name: barman
+        tasks_from: server-start-receive-wal.yml
+    - name: Check Barman health (this stops the WAL-receiver before checking if any backups are in progress)
+      include_role:
+          # This will stop the WAL-receiver as we do not want any scheduled
+          # backup jobs to begin during the upgrade
+        name: barman/update
+        tasks_from: health-check.yml
+      vars:
+        target_backups: "{{ barman_backed_nodes|default([]) }}"

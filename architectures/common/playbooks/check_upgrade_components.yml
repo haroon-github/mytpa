@@ -1,0 +1,135 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Check if Postgres version can be upgraded
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_postgres:&g_update_hosts
+  tasks:
+  - when: upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    block:
+    - name: Check if Postgres can be updated to specified package version  
+      include_role:
+        name: postgres/pkg
+        tasks_from: check-update.yml
+      when: postgres_package_version is defined
+    
+    - set_fact:
+        can_upgrade_postgres: "{{ postgres_package_update | default(true) }}"
+
+- name: Check if PgBouncer version can be upgraded
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pgbouncer:&g_update_hosts
+  tasks:
+  - when: upgrade_selector|strict_selects('pgbouncer') or upgrade_selector|strict_selects('all')
+    block:
+    - name: Check if PgBouncer can be updated to specified package version  
+      include_role:
+        name: pgbouncer/pkg
+        tasks_from: check-update.yml
+      when: pgbouncer_package_version is defined
+    
+    - set_fact:
+        can_upgrade_pgbouncer: "{{ pgbouncer_package_update | default(true) }}"
+
+- name: Check if PG Backup API version can be upgraded
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_barman:&g_update_hosts
+  tasks:
+  - when:
+    - upgrade_selector|strict_selects('pg-backup-api') or upgrade_selector|strict_selects('all')
+    - enable_pg_backup_api|default(false)
+    block:
+    - name: Check if PG Backup API can be updated to specified package version  
+      include_role:
+        name: pgbackupapi/pkg
+        tasks_from: check-update.yml
+      when: pg_backup_api_package_version is defined
+    
+    - set_fact:
+        can_upgrade_pg_backup_api: "{{ pg_backup_api_package_update | default(true) }}"
+
+- name: Check if Barman version can be upgraded
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_barman:&g_update_hosts
+  tasks:
+  - when: >
+      upgrade_selector|strict_selects('barman') or upgrade_selector|strict_selects('all')
+    block:
+    - name: Check if Barman can be updated to specified package version  
+      include_role:
+        name: barman/pkg
+        tasks_from: check-update.yml
+      when: barman_package_version is defined
+    
+    - set_fact:
+        can_upgrade_barman: "{{ barman_package_update | default(true) }}"
+
+- name: Check if edb-pem-agent version can be upgraded on PEM agents
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-agent:&g_update_hosts
+  tasks:
+  - when:
+    - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
+    block:
+    - name: Check if libcurl-minimal is installed
+      package_facts:
+        manager: auto
+
+    - name: Check if edb-pem-agent can be updated to specified package version  
+      include_role:
+        name: pem/agent/pkg
+        tasks_from: check-update.yml
+      when: 
+      - pem_agent_package_version is defined
+      - "not 'libcurl-minimal' in ansible_facts.packages"
+    
+    - set_fact:
+        can_upgrade_pem_agent: "{{ pem_agent_package_update | default(true) }}"
+
+- name: Check if edb-pem version can be upgraded on PEM servers
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-server:&g_update_hosts
+  tasks:
+  - when:
+    - upgrade_selector|strict_selects('pem-server') or upgrade_selector|strict_selects('all')
+    block:
+    - include_role:
+        # this task sets the 'pem_is_v10_or_higher' fact used below
+        name: pem/server/facts
+        tasks_from: pem-version.yml
+      
+    - name: Check if edb-pem can be updated to specified package version  
+      include_role:
+        name: pem/server/pkg
+        tasks_from: check-update.yml
+      when: 
+      - pem_server_package_version is defined
+      - pem_is_v10_or_higher
+    
+    - set_fact:
+        can_upgrade_pem_server: "{{ pem_server_package_update | default(true) }}"

@@ -24,13 +24,18 @@
 # tells us only that bdr5 packages conflict with the bdr4 ones. That's
 # not actually an error, and we shouldn't bother the user with it.
 
-- name: Try to check for required Postgres-related packages before upgrade
-  fail:
-    msg: >-
-      Package installation check failed: {{ postgres_pkg_check.msg }}
-      (rerun with `-e check_packages_before_upgrade=no` to skip)
-  when:
-    postgres_pkg_check is not successful
-    and not (ansible_distribution == 'RedHat'
-      and "Depsolve Error" in postgres_pkg_check.msg)
-    and check_packages_before_upgrade|default(true)
+- assert:
+    that: postgres_pkg_check is successful
+    fail_msg: >
+      Some packages are missing or the 'postgres_package_version' specified in 'config.yml' cannot be satisfied.
+
+- debug:
+    msg: "The desired 'postgres_package_version' or higher is already installed. Postgres upgrade tasks will be skipped on '{{ inventory_hostname }}'."
+  when: postgres_pkg_check.changed is false
+
+- set_fact:
+    postgres_package_update: "{{
+      postgres_pkg_check is defined 
+      and postgres_pkg_check is successful
+      and postgres_pkg_check.changed is true
+    }}"

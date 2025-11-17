@@ -24,6 +24,7 @@
       group: "{{ postgres_group }}"
       mode: "0644"
       state: file
+    when: log_server is not defined
 
   - include_role: name=pgbouncer/restart
     vars:
