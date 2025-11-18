@@ -38,7 +38,7 @@ function create_venv_and_prep_stuff {
     # install and setup python venv
     $PYTHON -m venv $VENV
     mkdir -p "$PIP_DEST"
-    $PIP install --upgrade 'pip<25.3' pip-tools wheel
+    $PIP install --upgrade pip pip-tools wheel
     #$PIP download --dest "$PIP_DEST" pip wheel
     $PIP install --upgrade cloudsmith-cli --extra-index-url=https://dl.cloudsmith.io/public/cloudsmith/cli/python/index/
 }
