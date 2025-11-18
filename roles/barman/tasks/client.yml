@@ -53,6 +53,7 @@
     name: postgres/pgpass
     apply:
       delegate_to: "{{ this_barman }}"
+      throttle: 1
   vars:
     pgpassfile: ~barman/.pgpass
     pgpass_owner: "{{ barman_user }}"
