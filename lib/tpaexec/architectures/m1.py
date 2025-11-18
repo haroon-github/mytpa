@@ -86,6 +86,14 @@ class M1(Architecture):
             help="The flavour of Patroni packages to be installed",
         )
 
+        g.add_argument(
+            "--efm-version",
+            required=False,
+            dest="efm_version",
+            default="5.1",
+            help="EFM version to be installed",
+        )
+
         layout_group = p.add_argument_group("M1 architecture layout options")
         layout_group.add_argument(
             "--data-nodes-per-location",
@@ -354,6 +362,18 @@ class M1(Architecture):
         # configured, we fall back to 'community' flavour.
         return "community"
 
+    def _set_efm_version(self, cluster_vars):
+        """
+        Set the value of ``efm_version``.
+
+        Use value configured by the user, if any, otherwise get a default value based on
+        the configured repositories.
+
+        :param cluster_vars: cluster variables to be inspected.
+        """
+        if self.args.get("efm_version"):
+            return self.args.get("efm_version")
+
     def update_cluster_vars(self, cluster_vars):
         """
         Makes architecture-specific changes to cluster_vars if required
@@ -385,7 +405,8 @@ class M1(Architecture):
             cluster_vars["patroni_package_flavour"] = self._get_patroni_flavour(
                 cluster_vars,
             )
-
+            if failover_manager == "efm":
+                cluster_vars["efm_version"] = self.args.get("efm_version")
             # Ensure secure defaults in the DCS and in Patroni itself
             cluster_vars["etcd_ssl_enabled"] = True
             cluster_vars["etcd_authentication_mode"] = "mtls"

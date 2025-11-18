@@ -7,6 +7,21 @@ description: How to install and configure EFM with TPA.
 TPA will install and configure EFM when `failover_manager` is set to
 `efm`.
 
+The version of EFM to be used can be configured by changing the `efm_version`:
+
+```yaml
+cluster_vars:
+  …
+  failover_manager: efm
+  efm_version: 5.2
+  …
+```
+It can also be defined when executing `tpaexec configure`:
+
+```shell
+tpaexec configure my-cluster-dir -a M1 --failover_manager efm --efm-version 5.2
+```
+
 Note that EFM is only available via EDB's package repositories
 and requires a valid subscription.
 

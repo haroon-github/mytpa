@@ -1,0 +1,12 @@
+- summary: Have `tpaexec configure` add `efm_version` to config.yml
+  description: |
+      Support for explicitly adding the `efm_version` if introduced when
+      executing `tpaexec configure` and choosing EFM as the failover manager.
+      This can be seen when invoking `tpaexec` as follows: `tpaexec
+      configure my-cluster-dir -a M1 --enable-efm --efm-version 5.2 (…)`.
+      Additionally, documentation covering the `efm_version` selection has been
+      added.
+  type: minor_change
+  jira_tickets:
+  - TPA-1169
+  - TPA-1170
