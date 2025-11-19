@@ -24,6 +24,7 @@ def main(actuals):
     # List of files holding dependencies we want to ensure are still being used.
     TARGETS = [
         "requirements-ppc64le.txt",
+        "requirements-s390x.txt",
     ]
 
     # parse the files and generate both target and actual deps dicts

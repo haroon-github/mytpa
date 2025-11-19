@@ -59,7 +59,7 @@ runs:
         #!/bin/bash
         FILES="requirements.txt"
 
-        ERRORS=$(python .github/actions/update-requirements/add_ppc64_hashes_to_requirements_files.py $FILES)
+        ERRORS=$(python .github/actions/update-requirements/add_arch_hashes_to_requirements_files.py $FILES)
         echo "ERRORS<<EOF" >> $GITHUB_OUTPUT
         echo "$ERRORS" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
