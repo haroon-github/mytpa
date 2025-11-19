@@ -59,7 +59,8 @@ restart EFM to activate the changes.
 ### EFM witness
 
 TPA will install and configure EFM as witness on instances whose `role`
-contains `efm-witness`.
+contains `efm-witness`. For such instances the `upstream` property must be specified to point
+to the designated primary database instance.
 
 ### Repmgr
 
