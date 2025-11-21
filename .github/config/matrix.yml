@@ -23,8 +23,7 @@ default:
     - "epas"
     - "edbpge"
   tpa_postgres_version: &default_tpa_postgres_version
-    - 18
-    - 16
+    - 17
     - 14
   tpa_harp_consensus_protocol:
     - "bdr"
@@ -35,9 +34,7 @@ default:
     - tpa_architecture: "PGD-Always-ON"
       tpa_postgres_version: "14"
     - tpa_architecture: "BDR-Always-ON"
-      tpa_postgres_version: "16"
-    - tpa_architecture: "BDR-Always-ON"
-      tpa_postgres_version: "18"
+      tpa_postgres_version: "17"
     - tpa_architecture: "BDR-Always-ON"
       tpa_postgres_version: "14"
       tpa_os_image: "debian:12"
@@ -90,14 +87,14 @@ default:
       tpa_os_image: "redhat:9"
       tpa_platform: "docker"
       tpa_postgres_flavour: "postgresql"
-      tpa_postgres_version: "14"
+      tpa_postgres_version: "17"
     - cpu_architecture: "arm64"
       tpa_architecture: "M1"
       tpa_failover_manager: "efm"
       tpa_os_image: "debian:12"
       tpa_platform: "docker"
       tpa_postgres_flavour: "epas"
-      tpa_postgres_version: "15"
+      tpa_postgres_version: "17"
     - cpu_architecture: "amd64"
       tpa_architecture: "M1"
       tpa_enable_pgbouncer: true
@@ -138,7 +135,7 @@ simple:
     - tpa_architecture: "PGD-X"
       tpa_postgres_version: "14"
     - tpa_architecture: "BDR-Always-ON"
-      tpa_postgres_version: "16"
+      tpa_postgres_version: "17"
     - tpa_architecture: "M1"
       tpa_postgres_flavour: "pgextended"
     - tpa_architecture: "BDR-Always-ON"
