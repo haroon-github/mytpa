@@ -293,7 +293,7 @@
 - name: Import post-upgrade health-checks for common components in the cluster
   import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/post_upgrade_checks.yml"
 
-- name: Run EFM-specific health checks after upgrade
+- name: Run Patroni-specific health checks after upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
