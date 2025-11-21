@@ -1,0 +1,9 @@
+- summary: Add `efm-post-config` hook
+  description: |
+      A new `efm-post-config` hook has been introduced to be able to execute
+      new tasks after the efm configuration has taken place. 
+      New documentation explaining how to use it has also been developed under
+      the 'TPA hooks' section.
+  type: minor_change
+  jira_tickets:
+  - TPA-1196

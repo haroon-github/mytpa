@@ -192,3 +192,11 @@
     owner: efm
     group: efm
     mode: "0750"
+
+- name: Include efm-post-config hook
+  include_tasks: "{{ hook }}"
+  when: >
+    lookup('first_found', dict(files=hook, skip=True))
+    and task_selector|permits('efm-post-config')
+  vars:
+    hook: "{{ cluster_dir }}/hooks/efm-post-config.yml"

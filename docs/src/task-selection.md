@@ -217,6 +217,10 @@ The following selectors are supported only for exclusion:
 
     The efm-pre-config hook, if one is defined.
 
+- efm-post-config
+
+    The efm-post-config hook, if one is defined.
+
 - fs
 
     Tasks related to setting up additional [volumes](volumes.md) on

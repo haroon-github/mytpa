@@ -100,6 +100,14 @@ generating any efm configuration.
 
 An example use of this hook is to install efm helper scripts.
 
+### efm-post-config
+
+TPA invokes `hooks/efm-post-config.yml` after finishing the efm 
+configuration step.
+
+An example use of this hook is for additional steps that need to be
+taken into account before exiting the efm configuration process.
+
 ### harp-config
 
 TPA invokes `hooks/harp-config.yml` after generating HARP configuration
