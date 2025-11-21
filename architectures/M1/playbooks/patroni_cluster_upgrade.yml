@@ -23,7 +23,7 @@
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: g_chosen_primary
+  hosts: all
   tasks: 
   - name: Run Patroni checks
     when:
