@@ -156,12 +156,13 @@
     - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
     - can_upgrade_postgres
     block:
-    - name: Update postgres on replica {{ inventory_hostname }}
+    - include_role: name=postgres/update
+    - name: Issue a postgresql restart if required
       include_role:
-        name: postgres/update
-    - name: Restart postgres on {{ inventory_hostname }} if necessary
-      include_role:
-        name: postgres/restart
+        name: patroni/service
+        tasks_from: postgres_restart.yml
+      vars:
+        postgres_service_end_state: restarted
 
 # if the switchover fails, the upgrade process will stop
 
@@ -199,12 +200,13 @@
     - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
     - can_upgrade_postgres
     block:
-    - name: Update postgres on original primary {{ inventory_hostname }}
+    - include_role: name=postgres/update
+    - name: Issue a postgresql restart if required
       include_role:
-        name: postgres/update
-    - name: Restart postgres on {{ inventory_hostname }} if necessary
-      include_role:
-        name: postgres/restart
+        name: patroni/service
+        tasks_from: postgres_restart.yml
+      vars:
+        postgres_service_end_state: restarted
 
 - name: Switchover back to chosen_primary
   any_errors_fatal: true
