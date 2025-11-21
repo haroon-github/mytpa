@@ -43,12 +43,6 @@
         tasks_from: efm/basic.yml
       vars:
         efm_bin_dir: "{{ current_efm_bin_dir | default(_efm_bin_dir) }}"
-
-    - name: Ensure efm_bind_by_hostname is handled
-      set_fact:
-        efm_identity: "{{ efm_bind_by_hostname|default(false)|ternary(inventory_hostname,ip_address) }}"
-      when:
-        role|intersect(['primary','replica'])
     vars:
       # The check-installed task invoked above ensures the installed_efm_versions list is non-empty
       # and contains only a single installed version, so we can safely use the 'first' filter. 
@@ -152,6 +146,11 @@
       from_version: "{{ current_efm_version | default(installed_efm_versions | first) }}"
       to_version: "{{ efm_version }}"
 
+# We do not run this play on the intersection of g_update_hosts, as we do not
+# want to "mix" EFM versions running in a cluster by only upgrading a subset
+# of data nodes. This is because each EFM version maintains it's own binaries
+# and configurations and we cannot guarantee disparate versions running across 
+# data nodes will operate together. EFM upgrade is an all-or-nothing operation.
 - name: Upgrade EFM
   any_errors_fatal: true
   max_fail_percentage: 0
@@ -287,8 +286,11 @@
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: g_chosen_primary
+  hosts: role_efm
   tasks:
+  - name: Wait for cluster to recover
+    wait_for:
+      timeout: 30
   - name: Check EFM health
     include_role:
       name: test
