@@ -40,6 +40,19 @@ exactly a given parameter is set.
 You should never edit any of the files under `conf.d`, because the
 changes may be overwritten when you next run `tpaexec deploy`.
 
+## postgres_port
+
+The Postgres port can be overwritten from its default value to another
+valid port number.
+
+```yaml
+cluster_vars:
+  postgres_port: 5433
+```
+
+This method is preferred over setting the port via `postgres_conf_settings`,
+since `postgres_port` ensures that the value is correctly shared and used across all components relying on this value to interact with the postgres cluster.
+
 ## postgres_conf_settings
 
 TPA provides variables like `temp_buffers` and
