@@ -84,7 +84,7 @@
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_postgres:&g_update_hosts
+  hosts: role_postgres:&g_update_hosts:!role_pem-server
   tasks:
   - when:
     - upgrade_selector|strict_selects('patroni') or upgrade_selector|strict_selects('all')
