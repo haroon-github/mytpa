@@ -17,6 +17,27 @@ TPA installs the `etcd` package available from the configured system
 repositories. On SLES and RHEL-based systems, TPA automatically enables the PGDG
 `extras` repository to provide the `etcd` package.
 
+## etcd package version
+
+By default, TPA installs the latest available version of etcd.
+
+The version of the etcd package that is installed can be specified
+by including `etcd_package_version: xxx` under the `cluster_vars`
+section of the `config.yml` file.
+
+```yaml
+cluster_vars:
+    …
+    etcd_package_version: '3.6.2*'
+    …
+```
+
+You may use any version specifier that apt or yum would accept.
+
+If your version does not match, try prepending a `*` wildcard. This
+is often necessary when the package version has an epoch qualifier
+like `2:...`.
+
 ## Configuration
 
 TPA generates the `/etc/etcd/etcd.conf` file based on your `config.yml` settings
@@ -86,3 +107,36 @@ You can set the following variables for `etcd`.
 | `etcd_authentication_mode` | `none`\* | Defines the client authentication mode (`none`, `basic`, `mtls`). Requires `etcd_ssl_enabled: true` for modes other than `none`. See Security. \* `mtls` for new clusters via `tpaexec configure`. |
 | `etcd_compaction_mode` | `revision` | The automatic compaction mode (`revision` or `periodic`). |
 | `etcd_compaction_retention` | `10` | The retention value for automatic compaction. For `revision` mode, this is the number of revisions to keep. For `periodic` mode, this is the time interval (e.g., `1h`). |
+
+## Minor update for etcd using `tpaexec upgrade`
+
+!!! Warning ETCDCTL_API v2 is deprecated
+  etcd v3.4 introduced a breaking change, making ETCDCTL_API v3 the default version, but allowed the
+  v2 API to be enabled manually.
+
+  etcd v3.6 completely removed the `--enable-v2` flag, making it impossible to use the v2 API at all.
+
+  TPA upgrade ONLY supports upgrade of `etcd` versions using the v3 API.
+
+  Before using TPA to upgrade `etcd` in a cluster, ensure it has
+  [migrated from the v2 API to the v3 API](https://etcd.io/docs/v3.4/op-guide/v2-migration/)
+!!!
+
+When trying to upgrade to a specific package version, ensure the `etcd_package_version` in
+`config.yml` is updated to reflect the desired version.
+
+The desired version can also be passed as an extra argument to the `tpaexec upgrade` command with:
+
+```shell
+tpaexec upgrade -e etcd_package_version="<desired version>" --components=etcd
+```
+
+Refer to the section on
+[package version selection and upgrade](tpaexec-upgrade.md#package-version-selection) for more
+information.
+
+To select etcd for upgrade, ensure the `--components` flag passed to the `tpaexec upgrade` command
+contains `etcd` (or `all`)
+
+Refer to the section on [component selection for upgrade](tpaexec-upgrade.md#component-selection)
+for more information.

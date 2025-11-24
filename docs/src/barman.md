@@ -35,8 +35,8 @@ the last 4 weeks.
 
 By default, TPA installs the latest available version of Barman.
 
-The version of the Barman package that is installed can be specified 
-by including `barman_package_version: xxx` under the `cluster_vars` 
+The version of the Barman package that is installed can be specified
+by including `barman_package_version: xxx` under the `cluster_vars`
 section of the `config.yml` file.
 
 ```yaml
@@ -62,7 +62,7 @@ as `/etc/barman.conf`. This file contains default values for many Barman
 configuration variables. For each Postgres server being backed up,
 an additional Barman configuration file is created. For example, to back up the
 server `one`, the file is `/etc/barman.d/one.conf`, and the backups
-are stored in the subdirectory `one` in the Barman home directory. 
+are stored in the subdirectory `one` in the Barman home directory.
 The configuration file and directory names can be changed from the backed-up instance's
 `backup_name` setting defined on the `vars` section before the provisioning step.
 
@@ -220,7 +220,7 @@ valid for `platform: aws` you must move that setting out of
 
 ### Special considerations for shared Barman servers
 
-You must use caution when setting up clusters that share a Barman 
+You must use caution when setting up clusters that share a Barman
 server instance. There are a number of important aspects you must
 consider before attempting such a setup.
 
@@ -253,3 +253,24 @@ other clusters sharing the Barman node in an inconsistent state
 because the Barman node will already have been deprovisioned by the
 first cluster and it won't exist anymore.
 !!!
+
+## Minor update using `tpaexec upgrade`
+
+When trying to upgrade to a specific package version, ensure the
+`barman_package_version` in `config.yml` is updated to reflect the desired
+version.
+The desired version can also be passed as an extra argument to the
+`tpaexec upgrade` command with:
+
+```shell
+-e barman_package_version="<desired version>"
+```
+
+Refer to the section on [package version selection and upgrade](tpaexec-upgrade.md#package-version-selection)
+for more information.
+
+To select Barman for upgrade, ensure the `--components` flag passed to the
+`tpaexec upgrade` command contains `barman` (or `all`)
+
+Refer to the section on [component selection for upgrade](tpaexec-upgrade.md#component-selection)
+for more information.

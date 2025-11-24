@@ -105,3 +105,43 @@ To explicitly prevent a standby from being promoted, add
 `efm-not-promotable` to the node’s `roles` list in your cluster
 configuration. This ensures that EFM will not attempt to promote this node during
 failover events.
+
+## Minor update for EFM using `tpaexec upgrade`
+
+!!! Note EFM is _not_ a package update
+  Due to how EFM versions are released, each EFM minor version has its own package (`edb-efm49` for
+  v4.9, `edb-efm50` for v5.0, etc.)
+  which installs its own distinct binary and configuration directories.
+!!!
+
+When upgrading EFM, set the `efm_version` in `config.yml` to reflect the desired version.
+
+TPA installs the package for the new version and copies over the configuration files from the
+existing EFM version's configuration directory into the new EFM version's configuration directory, 
+and removes the existing EFM version's package, service file and binary directory for cleanup.
+
+Because EFM upgrade depends on a previous version being installed and configured (the source), TPA
+first checks to ensure this is true. In the event a source EFM version is not installed (it's binary
+directory does not exist) or not configured (it's configuration directory does not exist), the
+upgrade will exit with an error. When running the upgrade, if the target EFM version (specified by
+`efm_version` in the `config.yml`) already has a binary directory and configuration directory,
+upgrade skips over EFM as it is already installed and configured to the desired version.
+
+!!! Note
+  EFM upgrade is supported from EFM 4.9 to 5.0 even if not a minor upgrade
+  per say, no additional steps are required for this upgrade to happen.
+!!!
+
+To select EFM for upgrade, ensure the `--components` flag passed to the
+`tpaexec upgrade` command contains `efm` (or `all`)
+
+Refer to the section on [component selection for upgrade](tpaexec-upgrade.md#component-selection)
+for more information.
+
+!!! Note
+  EFM can't work in a mixed version environment. Due to this limitation, there is no good reason to
+  support a partial upgrade of the EFM component.
+  TPA will **always** upgrade the EFM software on the complete set of EFM nodes when `efm` is part
+  of the list of components to upgrade.
+  TPA will ignore `update_hosts` when deciding which nodes should have EFM upgraded.
+!!!

@@ -39,8 +39,8 @@ postgres instance in the cluster in order to enable or disable PEM there.
 
 By default, TPA installs the latest available version of PEM agent and PEM server.
 
-The version of the PEM agent and PEM server packages that are installed can be specified 
-by including `pem_agent_package_version: xxx`  and `pem_server_package_version: xxx` under 
+The version of the PEM agent and PEM server packages that are installed can be specified
+by including `pem_agent_package_version: xxx`  and `pem_server_package_version: xxx` under
 the `cluster_vars` section of the `config.yml` file.
 
 ```yaml
@@ -57,7 +57,6 @@ If your version does not match, try appending a `*` wildcard. This
 is often necessary when the package version has an epoch qualifier
 like `2:...`.
 
-
 ## PEM configuration
 
 TPA will configure pem agents and pem server with the appropriate
@@ -65,25 +64,24 @@ instance-specific settings, with remaining settings set to the respective
 default values. Some of the configuration options may be exposed for user
 configuration at some point in future.
 
-PEM server's web interface is configured to run on https and uses 443 port
-for the same. PEM's webserver configuration uses self-signed certificates.
-
-The default login credentials for the PEM server web interface use the postgres
-backend database user, which is set to `postgres` for postgresql and
-`enterprisedb` for EPAS clusters by default. You can get the login
+!!! Note PEM components are upgraded independently.
+    Passing `pem-server` to `--components` upgrades ONLY the PEM server, whereas passing `pem-agent` upgrades ONLY the PEM agents.
+    If upgrading separately, it is recommended to upgrade the agents before the server. When both are upgraded together, TPA
+    upgrades the agents before the server.
+!!!
 password for the web interface by running
 `tpaexec show-password $clusterdir $user`.
-
 
 ## Passing additional options when registering PEM agents
 
 TPA registers each PEM agent in the cluster using the `pemworker` utility's
-`--register agent` command. 
+`--register agent` command.
 
 A list of additional registration options can be
 passed by including `pemagent_registration_opts` in the cluster config.
 
 For example:
+
 ```yaml
   pemagent_registration_opts:
   - --enable-smtp true
@@ -108,9 +106,9 @@ If this list is empty, no extensions will be automatically included.
 
 ## Providing an external certificate for PEM server SSL authentication
 
-By default, the PEM server creates a self-signed certificate pair, 
+By default, the PEM server creates a self-signed certificate pair,
 `server-pem.crt` and `server-pem.key` and configures the webserver to use them
-for HTTPS access. 
+for HTTPS access.
 
 The size of `server-pem.key` can be modified adding the variable `pem_rsa_key_size`
 to the `cluster_vars` section:
@@ -121,7 +119,7 @@ to the `cluster_vars` section:
     pem_rsa_key_size: 4096
 ```
 
-The size of the CA certificate expedited by the PEM database can also be modified 
+The size of the CA certificate expedited by the PEM database can also be modified
 adding the variable `pem_db_ca_certificate_key_size` to the `cluster_vars` section:
 
 ```yaml
@@ -136,8 +134,9 @@ the `cluster_vars` section. If the certificate needs to be replaced,
 use the `pem_web_server_renew_tls_certificates` variable on `tpaexec deploy`:
 `tpaexec deploy (...) -e pem_web_server_renew_tls_certificates=true`.
 
-To provide your own certificate pair, create a directory under the root of the 
+To provide your own certificate pair, create a directory under the root of the
 cluster directory named `ssl/pemserver` and place the certificate pair inside.
+
 ```yaml
 cluster directory
 ├── ssl
@@ -145,8 +144,9 @@ cluster directory
 │       ├── externally-provided.crt
 │       └── externally-provided.key
 ```
-Next, set the variables `pem_server_ssl_certificate` and `pem_server_ssl_key` 
-with the respective file names as values for the `vars:` under the pem server 
+
+Next, set the variables `pem_server_ssl_certificate` and `pem_server_ssl_key`
+with the respective file names as values for the `vars:` under the pem server
 instance or `cluster_vars` in the cluster config file.
 
 TPA will handle copying these files over to the pem server instance and
@@ -174,11 +174,11 @@ On instances with the `pem-agent` role, but without `pem-server` role:
 - `monitoring_agent_group` specifies the name of the group to which the PEM agent on this instance will be assigned. If not specified it defaults to the value of `pem_agent_group`.
 - `monitoring_cluster` specifies the name of the cluster to which the Postgres server on this instance will be assigned. If not specified, no cluster will be assigned/created.
 - `monitoring_agent_cluster` specifies the name of the cluster to which the PEM agent on this instance will be assigned. If not specified, no cluster will be assigned/created.
-  
+
 !!!Note
 PEM only permits a given cluster name to exist in a single group, so some combinations of these values are not viable.
 For example if you specify the same `monitoring_cluster` and `monitoring_agent_cluster`, but different `monitoring_group` and `monitoring_agent_group`, this implies the same cluster name would appear in two different groups.
-TPA allows PEM to handle such inconsistencies rather than attempting to prevent them. 
+TPA allows PEM to handle such inconsistencies rather than attempting to prevent them.
 This generally means `deploy` will succeed but you may not get exactly the organisation of servers and agents you expected.
 !!!
 
@@ -322,3 +322,45 @@ tpaexec show-password $clusterdir $user
 
 See [PEM documentation](https://www.enterprisedb.com/docs/pem/latest/)
 for more details on PEM configuration and usage.
+
+## Minor update for PEM using `tpaexec upgrade`
+
+!!! Note PEM major version upgrades from version 9 to version 10.
+    The PEM server package includes an SQL upgrade script which handles upgrading the database according to the PEM schema version.
+    Upgrading from PEM `v9.8.0` to PEM `10.1.1` using `tpaexec upgrade` has been tested and works, but is a major version upgrade.
+!!!
+
+!!! Note PEM components are upgraded independently.
+  Passing `pem-server` to `--components` upgrades ONLY the PEM server, whereas passing `pem-agent`
+  upgrades ONLY the PEM agents.
+  If upgrading separately, it is recommended to upgrade the agents before the server. When both are
+  upgraded together, TPA upgrades the agents before the server.
+!!!
+
+When trying to upgrade the PEM agents to a specific package version, ensure the
+`pem_agent_package_version` in `config.yml` is updated to reflect the desired version.
+
+When trying to upgrade the PEM server to a specific package version, ensure the
+`pem_server_package_version` in `config.yml` is updated to reflect the desired version.
+
+The desired version can also be passed as an extra argument to the `tpaexec upgrade` command with:
+
+```shell
+tpaexec upgrade <cluster_dir> \
+  -e pem_agent_package_version="<desired version>" \
+  -e pem_server_package_version="<desired version>" \
+  --components=pem-agent,pem-server
+```
+
+Refer to the section on
+[package version selection and upgrade](tpaexec-upgrade.md#package-version-selection) for more
+information.
+
+To select PEM agents for upgrade, ensure the `--components` flag passed to the `tpaexec upgrade`
+command contains `pem-agent` (or `all`)
+
+To select the PEM server for upgrade, ensure the `--components` flag passed to the `tpaexec upgrade`
+command contains `pem-server` (or `all`)
+
+Refer to the section on [component selection for upgrade](tpaexec-upgrade.md#component-selection)
+for more information.

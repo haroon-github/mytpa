@@ -25,7 +25,6 @@ If your version does not match, try appending a `*` wildcard. This
 is often necessary when the package version has an epoch qualifier
 like `2:...`.
 
-
 ## Configuring PgBouncer
 
 TPA will install and configure PgBouncer on instances whose `role`
@@ -96,3 +95,25 @@ instances:
         host: two
         port: 6543
 ```
+
+## Minor update for PgBouncer using `tpaexec upgrade`
+
+When trying to upgrade to a specific package version, ensure the `pgbouncer_package_version` in `config.yml` is updated to reflect the desired version.
+
+The desired version can also be passed as an extra argument to the `tpaexec upgrade` command with:
+
+```shell
+tpaexec upgrade <cluster_dir> \
+  -e pgbouncer_package_version="<desired version>" \
+  --components=pgbouncer
+```
+
+Refer to the section on
+[package version selection and upgrade](tpaexec-upgrade.md#package-version-selection) for more
+information.
+
+To select PgBouncer for upgrade, ensure the `--components` flag passed to the `tpaexec upgrade`
+command contains `pgbouncer` (or `all`)
+
+Refer to the section on [component selection for upgrade](tpaexec-upgrade.md#component-selection)
+for more information.

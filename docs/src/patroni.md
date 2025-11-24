@@ -52,8 +52,8 @@ recommended to use TPA methods wherever possible.
 
 By default, TPA installs the latest available version of Patroni.
 
-The version of the Patroni package that is installed can be specified 
-by including `patroni_package_version: xxx` under the `cluster_vars` 
+The version of the Patroni package that is installed can be specified
+by including `patroni_package_version: xxx` under the `cluster_vars`
 section of the `config.yml` file.
 
 ```yaml
@@ -68,6 +68,7 @@ You may use any version specifier that apt or yum would accept.
 If your version does not match, try appending a `*` wildcard. This
 is often necessary when the package version has an epoch qualifier
 like `2:...`.
+
 
 # Security
 
@@ -284,3 +285,24 @@ tpaexec test cluster_name
 
 TPA will detect the current role of nodes during deploy regardless of
 what config.yml contains, for example if a different node is the leader.
+
+## Minor update for patroni using `tpaexec upgrade`
+
+When trying to upgrade to a specific package version, ensure the `patroni_package_version` in
+`config.yml` is updated to reflect the desired version.
+
+The desired version can also be passed as an extra argument to the `tpaexec upgrade` command with:
+
+```shell
+tpaexec upgrade <cluster_dir> -e patroni_package_version="<desired version>" --components=patroni
+```
+
+Refer to the section on
+[package version selection and upgrade](tpaexec-upgrade.md#package-version-selection) for more
+information.
+
+To select Patroni for upgrade, ensure the `--components` flag passed to the `tpaexec upgrade`
+command contains `patroni` (or `all`)
+
+Refer to the section on [component selection for upgrade](tpaexec-upgrade.md#component-selection)
+for more information.
