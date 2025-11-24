@@ -1,0 +1,8 @@
+- summary: Set Patroni SSL certificate facts
+  description: |
+    The SSL certificate related facts set during deploy (like patroni_ssl_* vars)
+    were not persisted across playbook runs, causing undefined variable errors
+    during a test phase. We now set these facts whilst running those tests.
+  type: bugfix
+  jira_tickets:
+  - TPA-1239
