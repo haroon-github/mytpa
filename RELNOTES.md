@@ -2,6 +2,456 @@
 
 © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
+## v23.41.0 (2025-11-26)
+
+### Notable changes
+
+- Improve automation of PGD5.9+ to PGD6 upgrade
+
+  For a PGD v5.9 to v6 migration, Connection Manager is a requirement
+  instead of PGD proxy. The new command `switch2cm` has been introduced to
+  facilitate this transition.
+  The new command requires that the cluster's config.yml must be prepared by
+  running `tpaexec reconfigure <cluster> --enable-connection-manager`.
+  https://www.enterprisedb.com/docs/tpa/latest/tpaexec-upgrade/#upgrading-from-pgd-always-on-to-pgd-x
+
+  References: TPA-1148.
+
+- Support upgrade of components in repmgr-managed M1 clusters
+
+  The software component versions can now be updated, either to a specific
+  version by specifying the component package version in `config.yml`
+  or to the latest available when it is not provided. A list of components
+  for upgrade can be passed to the `--components` flag as a comma-separated
+  list. If this flag is not passed, `postgres` will be updated. Specifying 
+  `--components=all` will update all applicable software components.
+
+  References: TPA-924.
+
+- Mutual TLS (mTLS) Authentication for `etcd`
+
+  Support for mutual TLS has been added to secure all `etcd` communication. A new
+  `mtls` option is now available for the `etcd_authentication_mode` variable.
+
+  When `etcd_authentication_mode` is set to `mtls` (which requires
+  `etcd_ssl_enabled: true`), the deployment automation will enforce certificate-based
+  authentication for:
+
+  - Peer-to-peer communication between all `etcd` nodes.
+  - Client-server communication from clients like Patroni.
+
+  The playbook automatically configures both the `etcd` servers and the Patroni
+  clients with the necessary certificates and keys to ensure a fully secure and
+  validated connection.
+
+  References: TPA-1129, TPA-1130, TPA-1138.
+
+- Enable etcd Basic Authentication and Role-Based Access Control
+
+  This release introduces a new capability to secure the etcd distributed key-value
+  store with client authentication. You can now enable basic authentication and
+  configure a dedicated user for Patroni with granular, least-privilege permissions.
+
+  A new configuration variable, `etcd_authentication_mode`, has been added to control
+  the feature. When set to `basic`, the deployment automation will:
+
+  - Set up an administrative `root` user.
+  - Create a dedicated etcd user for Patroni, given by the new `patroni_etcd_user`
+    configuration option, and grant it read-write permissions limited to its cluster's
+    key prefix (e.g., `/tpa/cluster_name`).
+  - Configure Patroni to automatically use these credentials to securely connect and
+    authenticate with etcd.
+
+  To maintain backward compatibility, this feature is disabled by default
+  (`etcd_authentication_mode: none`).
+
+  References: TPA-1128, TPA-1136.
+
+- Support upgrade of components in Patroni clusters
+
+  The software component versions can now be updated, either to a specific
+  version by specifying the component package version in `config.yml`
+  or to the latest available when it is not provided. A list of components
+  for upgrade can be passed to the `--components` flag as a comma-separated
+  list. If this flag is not passed, `postgres` will be updated. Speciyfing 
+  `--components=all` will update all applicable software components.
+
+  References: TPA-925.
+
+- Support upgrade of components in EFM-managed M1 clusters
+
+  The software component versions can now be updated, either to a specific
+  version by specifying the component package version in `config.yml`
+  or to the latest available when it is not provided. A list of components
+  for upgrade can be passed to the `--components` flag as a comma-separated
+  list. If this flag is not passed, `postgres` will be updated. Specifying 
+  `--components=all` will update all applicable software components.
+
+  References: TPA-926.
+
+- Communication with the `etcd` cluster can now be secured using SSL/TLS
+
+  A new configuration parameter, `etcd_ssl_enabled`, has been introduced to enable TLS
+  encryption for all `etcd` communication. This significantly hardens the security of
+  the cluster's distributed control plane.
+
+  When `etcd_ssl_enabled` is set to `true`:
+
+  * The deployment process automatically generates the required TLS certificates for
+    each `etcd` node. These certificates now include both DNS and IP Subject
+    Alternative Names (SANs) for robust validation.
+  * Both peer-to-peer and client-server `etcd` connections are configured to use
+    HTTPS.
+  * Downstream components, including **Patroni** and internal health checks using
+    `etcdctl`, are automatically configured to connect to `etcd` securely over HTTPS.
+
+  To maintain backward compatibility with existing deployments, this feature is
+  disabled by default (`etcd_ssl_enabled: false`).
+
+  References: TPA-1131, TPA-1132, TPA-1137.
+
+- Support upgrade of components in BDR/PGD clusters
+
+  The software component versions can now be updated, either to a specific
+  version by specifying the component package version in `config.yml`
+  or to the latest available when it is not provided. A list of components
+  for upgrade can be passed to the `--components` flag as a comma-separated
+  list. If this flag is not passed, `postgres` will be updated. Speciyfing 
+  `--components=all` will update all applicable software components.
+
+  References: TPA-927.
+
+- Minor version upgrades for PGD-X
+
+  The `tpaexec upgrade` command can now perform minor version upgrades of
+  postgres and PGD on a cluster running the PGD-X architecture.
+
+  The upgrade process checks cluster health and upgrades the nodes
+  one at a time.
+  This scenario supports the use of `update_hosts` variable to upgrade a subset of
+  the cluster when used accordingly to the best practice recommendations found 
+  in the documentation.
+
+  References: TPA-1040.
+
+- Mutual TLS (mTLS) Authentication for Patroni REST API
+
+  Support for mutual TLS has been added to provide a more secure, certificate-based
+  authentication method for the Patroni REST API.
+
+  A new configuration variable, `patroni_authentication_mode`, is now available. You
+  can set this to `mtls` to enable this feature. When enabled (which requires
+  `patroni_ssl_enabled: true`), the deployment automation will:
+
+  * Configure the Patroni REST API server to require and validate client certificates.
+  * Automatically configure clients, including `patronictl` and HAProxy health checks,
+    with the necessary client certificates and keys to connect securely.
+
+  The default authentication mode remains `basic` (username and password) to ensure
+  backward compatibility with existing deployments.
+
+  References: TPA-1135, TPA-1139.
+
+- Minor version upgrades for PGD-S
+
+  The `tpaexec upgrade` command can now perform minor version upgrades of
+  postgres and PGD on a cluster running the PGD-S architecture.
+
+  The upgrade process checks cluster health and upgrades the nodes one at a
+  time.
+
+  This scenario supports the use of `update_hosts` variable to upgrade a
+  subset of the cluster when used accordingly to the best practice
+  recommendations found in the documentation.
+
+  References: TPA-1039, TPA-1208, TPA-1209.
+
+- Default EFM password encryption changed to scram-sha-256
+
+  TPA now defaults to `efm_user_password_encryption: scram-sha-256` for all new
+  clusters configured with EFM as the failover manager. This change applies when
+  running `tpaexec configure` with `--enable-efm` or `--failover-manager efm`.
+
+  This addresses the deprecation of MD5 password encryption in PostgreSQL 18 and
+  provides improved security for all PostgreSQL versions.
+
+  Existing clusters are unaffected. Users can override this default by explicitly
+  setting `efm_user_password_encryption: md5` in config.yml if needed, though MD5
+  support will be removed from TPA in a future release.
+
+  References: TPA-1155.
+
+### Minor changes
+
+- Introduce new instance-level variables to control how servers and agents are displayed in PEM
+
+  Introduce four new instance variables for use with the `pem-agent` role:
+  - `monitoring_group`
+  - `monitoring_agent_group`
+  - `monitoring_cluster`
+  - `monitoring_agent_cluster`
+  Also introduce the instance variable `pem_agent_group` for use with the `pem-server` role alongside the existing variable `pem-server-group`.
+  Collectively, these variables determine which group and cluster the servers and agents are assigned to in PEM.
+  See the documentation for a full explanation.
+
+  References: TPA-1083, RT49911.
+
+- Install libpq5 on PEM server v10+ for RHEL
+
+  PEM 10.1 added `libpq5` as a dependency to fix `psycopg` errors related
+  to `kerberos` authentication on RHEL 9 servers. A `postgres-server`
+  package could be installed which already provides `libpq5` (as in
+  providing capability, not always a package with the exact name). 
+  To ensure `libpq5` is installed, TPA now explicitly installs it on RHEL
+  servers when the PEM server version is 10 or greater.
+
+  References: TPA-1166, PEM-5609.
+
+- Move pre-deploy hook outside repositories role
+
+  This hook was part of the repositories role, however, because nowadays
+  we introduced the possibility to exclude this role from deployments, the
+  hook was not being executed in those cases. To avoid this situation, we
+  moved the hook outside the role so it's always executed.
+
+  References: TPA-1153.
+
+- Add `efm-post-config` hook
+
+  A new `efm-post-config` hook has been introduced to be able to execute
+  new tasks after the efm configuration has taken place. 
+  New documentation explaining how to use it has also been developed under
+  the 'TPA hooks' section.
+
+  References: TPA-1196.
+
+- Changes on pgaudit and postgis plugins package name for PG18
+
+  Adding PG18 support for those plugins. The version of those depends on
+  the postgres version being supported as well. As a side work, we have
+  removed versions 11 and 12 from the plugin lists to clean up residue
+  as they are no longer widely supported.
+
+  References: TPA-1154.
+
+- Install `libcurl-full` when required
+
+  `libcurl-minimal` is installed certain RHEL-esque images, and while it
+  satisfies the package dependencies for `edb-pem-agent`, it does NOT
+  provide the complete set of APIs required (namely for SMTP) If it is
+  installed, we remove it and install the `libcurl-full` meta-package to
+  ensure full `libcurl` functionality exists for the PEM agent. Because
+  the `edb-pem` package depends on the `edb-pem-agent` package, the
+  `libcurl-minimal` package must also be removed on the PEM server in
+  order to avoid dependency resolution conflicts. This is done by
+  installing the package with the `allowerase` parameter.
+
+  References: TPA-1211.
+
+- Add auto.basebackup property for EFM 5.2 and above
+
+  Starting with EFM 5.2, there will be a new property `auto.basebackup`
+  that adds on to the new auto-rebuild capability. Users can use the
+  existing pg_rewind feature, pg_basebackup, or tell EFM to use both
+  (pg_basebackup will be run if pg_rewind fails).
+
+  References: TPA-1205.
+
+- Secure etcd and Patroni defaults for new `tpaexec configure` clusters
+
+  When creating a new cluster configuration using `tpaexec configure`, the generated
+  `config.yml` file will now automatically enable SSL/TLS encryption and mutual TLS
+  (mTLS) authentication for both `etcd` and `Patroni` by default. This ensures that
+  new deployments start with a secure communication baseline out-of-the-box. The
+  following variables are now set by default for new configurations:
+
+  - `etcd_ssl_enabled: true`
+  - `etcd_authentication_mode: mtls`
+  - `patroni_ssl_enabled: true`
+  - `patroni_authentication_mode: mtls`
+
+  Existing cluster configurations are unaffected by this change.
+
+  References: TPA-1133.
+
+- Update the internal dictionary of the AWS regions
+
+  The change updates the internal dictionary of the AWS regions to expand the
+  coverage of the supported regions and corresponding AZs.
+
+  References: TPA-1090.
+
+- Improve security of Patroni REST API with access `allowlist`
+
+  The security of the Patroni REST API has been enhanced by configuring an `allowlist`
+  for unsafe API endpoints (which accept `POST`, `PUT`, `PATCH`, `DELETE`). This
+  measure prevents unauthorized nodes from performing administrative actions, such as
+  restarting a database node or changing the cluster configuration.
+
+  The `allowlist` is dynamically populated with the hostnames of the Patroni cluster
+  members based on the Ansible inventory, ensuring that only authorized nodes can
+  perform requests to these sensitive API endpoints.
+
+  References: TPA-1134.
+
+- Running pgd-proxy instead of journalctl for version detection
+
+  There are some edge cases where journalctl does not return the expected version.
+  Hence, we're running pgd-proxy directly to get the version information instead. A
+  new `pgd-proxy --version` has been added in one of the last releases, however,
+  as long as the previous versions are still in use, and pgd-proxy always includes
+  the version information when started, we can rely on that.
+
+  References: TPA-953.
+
+- Added support for validity period in OpenSSL generated certificates
+
+  SSL certificates (OpenVPN, PEM and TPA itself) used in TPA don't come with a way of handling the 
+  number of days before expiration.
+  This change includes a variable called "openssl_certificate_validity" (default 3650 days), that can be
+  used to determine the number of days a SSL certificate will have before expiring. 
+  In order to force TPA to reload a new certificate with a new expiration date, you need to pass some 
+  variables on the deploy phase depending on what you want to renew (to renew the PEM SSL certificate: 
+  "tpaexec deploy (...) -e pem_web_server_renew_tls_certificates=true" and to renew the self-signed SSL 
+  certificate: "tpaexec deploy (...) -e tpa_tls_renew_tls_certificates=true").
+
+  References: TPA-1175.
+
+- Start PGD proxy after the network is available
+
+  This service needs the network service to be up and running before it can
+  be started. `Wants` and `After` directives have been added to the PGD Proxy
+  service unit to ensure that.
+
+  References: TPA-1206, CP54251, CP52731.
+
+- Document `postgres_port` in TPA documentation
+
+  Add mention of the parameter `postgres_port`  in
+  the TPA documentation.
+  `postgres_port` is the variable allowing the customization of the listening port 
+  for postgres. This variable will ensure consistent use of the set value 
+  across all components of the cluster relying on the information.
+
+  References: TPA-1145.
+
+- Have `tpaexec configure` add `efm_version` to config.yml
+
+  Support for explicitly adding the `efm_version` if introduced when
+  executing `tpaexec configure` and choosing EFM as the failover manager.
+  This can be seen when invoking `tpaexec` as follows: `tpaexec
+  configure my-cluster-dir -a M1 --enable-efm --efm-version 5.2 (…)`.
+  Additionally, documentation covering the `efm_version` selection has been
+  added.
+
+  References: TPA-1169, TPA-1170.
+
+- Disabling TRACK/TRACE method on PEM's httpd
+
+  The PEM team moved this definition to the <VirtualHost> section
+  for the default virtual host on port defined by the
+  "pem_server_ssl_port" variable. This is an effort to sync up
+  the changes they implement.
+
+  References: TPA-1191, CP54529.
+
+### Bugfixes
+
+- Fix task selection for pgdcli
+
+  Fix a bug whereby the pgdcli role would be run on bdr nodes even when task
+  selectors were used which should implicitly exclude it.
+
+  References: TPA-1184.
+
+- Missing PGD CLI on proxy nodes when performing upgrade (3.7 to 5)
+
+  When performing a regular deploy, or an upgrade from a 'BDR-Always-ON' setup 
+  to 'PGD-Always-ON', the proxy nodes (previously deployed with the 'harp-proxy' 
+  role), will not come shipped with the PGD CLI when trying to install it with 
+  the 'pgd-proxy' role, necessary to perform the upgrade.
+  This fix ensures that the PGD CLI will be installed on the proxy nodes and nodes
+  with a 'bdr' role, also on the nodes featuring only the 'pgdcli' role.
+
+  References: TPA-1174, TPA-1214.
+
+- Patroni REST API SSL/TLS connections are now correctly configured and secure
+
+  Previously, enabling SSL for the Patroni REST API (`patroni_ssl_enabled: true`) used
+  a self-signed certificate. This resulted in `CERTIFICATE_VERIFY_FAILED` errors for
+  clients like `patronictl`, making the feature unusable in a secure configuration.
+
+  This has been fixed by implementing a proper certificate generation process. The
+  Patroni REST API server is now configured with a server certificate signed by a
+  Certificate Authority (CA) created by TPA for the TPA cluster. Additionally, the
+  `ctl` section of the `patroni.yml` configuration has been corrected to ensure
+  `patronictl` is properly configured to use the CA for server validation and to
+  present its own client certificate and key for authentication (mTLS).
+
+  As a result, enabling SSL for the Patroni REST API now provides a fully secure and
+  verifiable communication channel for all clients.
+
+  References: TPA-449.
+
+- Fix unwanted_packages to support 'common' key that applies to all distribution
+
+  When setting `unwanted_packages` using the `common` key was no supported, which differs 
+  from behavior from other package dictionary that can be set in config.yml unwanted_packages 
+  only supported choosing the specific distribution as key (i.e: RedHat, Debian, ...). 
+  This fix introduces the support for the `common` key, ensuring any package listed under this
+  key will be removed if present on any distribution in use in the cluster.
+
+  References: TPA-1210.
+
+- Fix race conditions during concurrent updates to the Barman .pgpass file
+
+  Previously, when multiple backed-up nodes attempted to update the Barman
+  node's .pgpass file concurrently, a race condition could occur, resulting in
+  partial or incomplete entries. TPA now serializes this process, ensuring that the
+  Barman node's .pgpass file is updated sequentially to prevent loss.
+
+  References: TPA-1207, CP52460.
+
+- tpaexec test does not remove entry after testing
+
+  After deploying a cluster and running `tpaexec test` on
+  that cluster, creates an additional entry in 
+  bdr.replication_set_table which is not later removed.
+
+  The fix makes the test run on a temporary schema called
+  `tpatest`, which is later removed after the test is finished.
+
+  References: TPA-1177.
+
+- Fix `etcd` package installation on SLES
+
+  Deployments on SLES-based distributions that require `etcd` (such as those using
+  Patroni) would previously fail because the `etcd` package could not be found in the
+  standard repositories. This has been resolved by enabling the PGDG `extras`
+  repository, which provides the necessary package and allows the installation to
+  succeed.
+
+  References: TPA-1026.
+
+- Fixed a fatal error during Docker container provisioning
+
+  When creating containers on modern versions of docker using user-defined
+  networks, `provision` would sometime crash with a 'dict object' has no
+  attribute 'IPAddress' error. This was caused by an outdated method of
+  discovering the container's IP address. The logic has been updated to be
+  compatible with modern Docker network structures, making container creation
+  more robust.
+
+  References: TPA-1230.
+
+- Set Patroni SSL certificate facts
+
+  The SSL certificate related facts set during deploy (like patroni_ssl_* vars)
+  were not persisted across playbook runs, causing undefined variable errors
+  during a test phase. We now set these facts whilst running those tests.
+
+  References: TPA-1239.
+
 ## v23.40.1 (2025-10-27)
 
 ### Minor changes

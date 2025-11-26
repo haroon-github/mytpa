@@ -1,9 +1,0 @@
-- summary: Changes on pgaudit and postgis plugins package name for PG18
-  description: |
-    Adding PG18 support for those plugins. The version of those depends on
-    the postgres version being supported as well. As a side work, we have
-    removed versions 11 and 12 from the plugin lists to clean up residue
-    as they are no longer widely supported.
-  type: minor_change
-  jira_tickets:
-  - TPA-1154
