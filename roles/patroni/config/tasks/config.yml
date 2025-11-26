@@ -154,6 +154,22 @@
     object_contents: "{{ _patroni_conf_ssl }}"
   when: patroni_ssl_enabled
 
+- name: Update patroni config with REST API basic authentication settings if required
+  include_role:
+    name: config/add_to_obj
+  vars:
+    object_varname: patroni_conf
+    object_contents: "{{ _patroni_conf_basic_authentication }}"
+  when: patroni_authentication_mode == 'basic'
+
+- name: Update patroni config with REST API mTLS authentication settings if required
+  include_role:
+    name: config/add_to_obj
+  vars:
+    object_varname: patroni_conf
+    object_contents: "{{ _patroni_conf_mtls_authentication }}"
+  when: patroni_authentication_mode == 'mtls'
+
 - name: Update patroni config with postgres rewind settings if required
   include_role:
     name: config/add_to_obj
@@ -169,6 +185,30 @@
     object_varname: patroni_conf
     object_contents: "{{ _patroni_conf_etcd }}"
   when: patroni_dcs == 'etcd'
+
+- name: Update patroni config with ETCD SSL settings if required
+  include_role:
+    name: config/add_to_obj
+  vars:
+    object_varname: patroni_conf
+    object_contents: "{{ _patroni_conf_etcd_ssl }}"
+  when: patroni_dcs == 'etcd' and etcd_ssl_enabled
+
+- name: Update patroni config with ETCD basic authentication settings if required
+  include_role:
+    name: config/add_to_obj
+  vars:
+    object_varname: patroni_conf
+    object_contents: "{{ _patroni_conf_etcd_basic_authentication }}"
+  when: patroni_dcs == 'etcd' and etcd_authentication_mode == 'basic'
+
+- name: Update patroni config with ETCD mTLS authentication settings if required
+  include_role:
+    name: config/add_to_obj
+  vars:
+    object_varname: patroni_conf
+    object_contents: "{{ _patroni_conf_etcd_mtls_authentication }}"
+  when: patroni_dcs == 'etcd' and etcd_authentication_mode == 'mtls'
 
 - name: Update patroni config with watchdog settings if required
   include_role:

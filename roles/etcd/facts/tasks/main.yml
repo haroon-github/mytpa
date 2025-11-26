@@ -1,0 +1,63 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- include_tasks: validate.yml
+
+- name: Set etcd protocol
+  set_fact:
+    etcd_protocol: "{{ 'https' if etcd_ssl_enabled else 'http' }}"
+
+- name: Set etcd endpoints
+  set_fact:
+    etcd_endpoints: "{{
+        groups['role_etcd']
+        |select_by_hostvar(hostvars, 'etcd_location', etcd_location)
+        |map('pyformat_hostvars', '{etcd_protocol}://{inventory_hostname}:{etcd_client_port}', hostvars)
+        |list
+        |join(',')
+      }}"
+
+- name: Set etcdctl command-line options
+  set_fact:
+    # Use this for initial setup tasks like creating the first user, before the
+    # authentication role has run.
+    etcdctl_options_no_auth: "{{ _options_list_no_auth | map('trim') | reject('==', '') | join(' ') }}"
+    # Use this for all other tasks after the authentication role has run, independently
+    # if authentication was enabled by the role or not.
+    etcdctl_options: "{{ _options_list_with_auth | map('trim') | reject('==', '') | join(' ') }}"
+  vars:
+    _endpoints_option: >-
+      {{ '--endpoints=' ~ (etcd_endpoints | quote) }}
+
+    # This role is run once in the beginning of the deployment, then run again by the
+    # etcd/authentication role. The second run is able to properly set this fact with
+    # auth credentials, in case it detects that authentication is enabled in etcd.
+    _auth_option: >-
+      {{
+        ('--user=' ~ ('root:' ~ vars['etcd_root_password']) | quote)
+        if etcd_authentication_is_enabled|default(false) and vars['etcd_root_password'] is defined
+        else ''
+      }}
+
+    # Similar reasoning applies to SSL options.
+    # Ideally `--cert` and `--key` should only be provided when using mTLS authentication,
+    # as that's when the client needs to present a certificate to the server. However, as
+    # etcdctl won't complain if those options are provided even when not needed, we
+    # always provide them when `etcd_ssl_enabled` is true and the files are defined. That
+    # makes it easier to handle transitions between authentication modes, for example from
+    # 'mtls' to 'none' or vice-versa, without having to recalculate the options a third
+    # time.
+    _ssl_options: >-
+      {{ '--cacert=' ~ (etcd_ssl_ca_file | quote) if etcd_ssl_enabled and etcd_ssl_ca_file is defined else '' }}
+      {{ '--cert=' ~ (etcd_ssl_cert_file | quote) if (etcd_authentication_mode == 'mtls' or etcd_ssl_enabled) and etcd_ssl_cert_file is defined else '' }}
+      {{ '--key=' ~ (etcd_ssl_key_file | quote) if (etcd_authentication_mode == 'mtls' or etcd_ssl_enabled) and etcd_ssl_key_file is defined else '' }}
+
+    _options_list_no_auth:
+      - "{{ _endpoints_option }}"
+      - "{{ _ssl_options }}"
+
+    _options_list_with_auth:
+      - "{{ _endpoints_option }}"
+      - "{{ _ssl_options }}"
+      - "{{ _auth_option }}"

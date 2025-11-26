@@ -1,0 +1,32 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Include repmgr-pre-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/repmgr-pre-update.yml"
+
+- name: Upgrade repmgr package
+  include_role: name=repmgr/pkg
+  vars:
+    allow_package_upgrades: yes
+
+- name: Restart Postgres
+  include_role: name=postgres/restart
+  vars:
+    postgres_service_end_state: restarted
+
+- name: Restart repmgrd
+  service:
+    name: repmgr
+    state: restarted
+
+- name: Include repmgr-post-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/repmgr-post-update.yml"

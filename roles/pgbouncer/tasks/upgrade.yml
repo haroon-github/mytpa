@@ -14,8 +14,17 @@
     vars:
       allow_package_upgrades: yes
 
-  # TODO This is the right time to update the pgbouncer configuration,
-  # if required, before restarting pgbouncer.
+  - include_role:
+      name: pgbouncer/config
+  
+  - name: "Ensure pgbouncer.log is owned by {{ postgres_user }}"
+    file:
+      path: /var/log/pgbouncer/pgbouncer.log
+      owner: "{{ postgres_user }}"
+      group: "{{ postgres_group }}"
+      mode: "0644"
+      state: file
+    when: log_server is not defined
 
   - include_role: name=pgbouncer/restart
     vars:

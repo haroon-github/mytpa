@@ -1,0 +1,32 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- include_tasks: list-packages.yml
+  vars:
+    list_varname: _all_pem_agent_packages
+
+- name: Check if we can install the desired edb-pem-agent packages
+  include_role:
+    name: pkg/install
+  vars:
+    package_list_name: "pem-agent packages"
+    package_list: "{{ _all_pem_agent_packages }}"
+    check_install_only: yes
+    result_varname: pem_agent_pkg_check
+
+- assert:
+    that: pem_agent_pkg_check is successful
+    fail_msg: >
+      Some packages are missing or the 'pem_agent_package_version' specified in 'config.yml' cannot be satisfied.
+
+- debug:
+    msg: "The desired 'pem_agent_package_version' or higher is already installed. PEM agent upgrade tasks will be skipped on '{{ inventory_hostname }}'."
+  when: pem_agent_pkg_check.changed is false
+
+- set_fact:
+    pem_agent_package_update: "{{
+      pem_agent_pkg_check is defined 
+      and pem_agent_pkg_check is successful
+      and pem_agent_pkg_check.changed is true
+    }}"

@@ -2,6 +2,8 @@
 
 [Unit]
 Description=PGD Proxy
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple

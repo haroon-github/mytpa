@@ -32,6 +32,30 @@
   when: >
     'etcd' in role
 
+# This password will be used later when setting up authentication. But that occurs only
+# once the etcd cluster is up and running, and we want to know the password before-hand,
+# allowing it to be used elsewhere before that stage, if needed.
+- name: "Generate password for the etcd user root"
+  when: >
+    'etcd' in role
+    and etcd_authentication_mode == 'basic'
+  include_role:
+    name: secret
+  vars:
+    secret_name: etcd_root_password
+    generate_password: true
+
+- block:
+  - include_tasks: ssl.yml
+
+  # Refresh facts so etcdctl_options is properly set with the SSL parameters, if any
+  - name: Refresh etcd facts
+    include_role:
+      name: etcd/facts
+  when: >
+    'etcd' in role
+    and etcd_ssl_enabled
+
 - name: Install etcd.conf
   template:
     src: etcd.conf.j2

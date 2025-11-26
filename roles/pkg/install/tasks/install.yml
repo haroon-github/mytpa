@@ -28,6 +28,8 @@
   package:
     name: "{{ package_list|mandatory }}"
     state: present
+    allowerasing: "{{ allowerasing|default(false)|ternary(true, omit) }}"
+    use: "{{ allowerasing|default(false)|ternary('dnf', 'auto') }}"
   register: install_cmd
   check_mode:
     "{{ check_install_only|default(omit) }}"

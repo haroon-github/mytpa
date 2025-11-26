@@ -1,0 +1,21 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Include pgbouncer-pre-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/pgbouncer-pre-update.yml"
+
+- include_role:
+    name: pgbouncer
+    tasks_from: upgrade.yml
+
+- name: Include pgbouncer-post-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/pgbouncer-post-update.yml"

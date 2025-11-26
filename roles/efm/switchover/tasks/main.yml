@@ -30,7 +30,7 @@
     assert:
       msg: "Expected only one primary, but found: {{ groups['primary']|join(', ') }}"
       that:
-        - groups['primary']|length == 1
+        - groups['primary']|difference(groups['role_pem-server']|default([]))|length == 1
 
   - name: Ensure that the new target is not a cascading replica
     assert:
@@ -82,8 +82,9 @@
       efm_status: "{{ cluster_status.stdout|from_json }}"
 
 - name: Update upstream_primary and efm.properties to reflect switchover
-  when: >
-    'primary' in role or 'replica' in role
+  when:
+  - "'primary' in role or 'replica' in role"
+  - "'pem-server' not in role"
   block:
   - name: Set {{ target }} as upstream_primary
     set_fact:

@@ -1,0 +1,34 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- include_tasks: list-packages.yml
+  vars:
+    list_varname: _all_repmgr_packages
+
+- name: Check if we can install the desired repmgr packages
+  include_role:
+    name: pkg/install
+  vars:
+    package_list_name: "repmgr packages"
+    package_list: "{{ _all_repmgr_packages }}"
+    check_install_only: yes
+    result_varname: repmgr_pkg_check
+
+- assert:
+    that: repmgr_pkg_check is successful
+    fail_msg: >
+      Some packages are missing or the 'repmgr_package_version' specified in 'config.yml' cannot be satisfied.
+
+- debug:
+    msg: "The desired 'repmgr_package_version' or higher is already installed. repmgr upgrade tasks will be skipped on '{{ inventory_hostname }}'."
+  when:
+  - repmgr_pkg_check is successful
+  - repmgr_pkg_check.changed is false
+
+- set_fact:
+    repmgr_package_update: "{{
+      repmgr_pkg_check is defined 
+      and repmgr_pkg_check is successful 
+      and repmgr_pkg_check.changed is true
+    }}"

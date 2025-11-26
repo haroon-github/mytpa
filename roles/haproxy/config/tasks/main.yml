@@ -15,6 +15,49 @@
     group: root
     mode: "0644"
 
+# If Patroni REST API requires a client certificate and key, let's generate one for the
+# HAProxy agent.
+- include_tasks: ssl.yml
+  when:
+    - failover_manager == 'patroni'
+    - patroni_authentication_mode == 'mtls'
+
+# After 'ssl.yml' runs, we are able to properly set check-ssl in HAProxy configuration.
+# If Patroni was set up with mTLS, we need to verify the server certificate with our CA,
+# and to send our client certificate and key. Otherwise we just rely on the server.
+- name: Ensure check-ssl is set in haproxy_server_options if required
+  set_fact:
+    haproxy_server_options: "{{
+        hostvars[item].haproxy_server_options|union(
+          ['check-ssl', _check_ssl_options]|flatten
+        )
+      }}"
+  with_items: "{{ haproxy_backend_servers }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  when:
+    - failover_manager == 'patroni'
+    - patroni_ssl_enabled
+    - "'check-ssl' not in hostvars[item].haproxy_server_options|join(' ')"
+  vars:
+    # SSL options for the HAProxy backend server.
+    # When the Patroni REST API server is running with SSL enabled, we need to configure
+    # HAProxy to establish a HTTPS connection for performing health checks.
+    #
+    # If Patroni was configured with mTLS, we also need to provide the client certificate
+    # and key to HAProxy, so that it can authenticate to the Patroni REST API server.
+    #
+    # Otherwise, we simply need to provide the CA certificate to verify the server
+    # certificate. In this case, we can use 'ssl_ca_file'. As 'patroni_ssl_enabled' is
+    # true (given the 'when' condition above), 'ssl_ca_file' will be surely set -- see
+    # roles/sys/ssl/tasks/main.yml
+    _check_ssl_options: >-
+      {%- if hostvars[item].patroni_authentication_mode == 'mtls' -%}
+      check-ssl verify required ca-file {{ haproxy_ssl_ca_file }} crt {{ haproxy_ssl_cert_combined_file }}
+      {%- else -%}
+      check-ssl verify required ca-file {{ ssl_ca_file }}
+      {%- endif -%}
+
 - name: Install haproxy.cfg
   template:
     src: haproxy.cfg.j2

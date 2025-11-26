@@ -1,0 +1,87 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Upgrade PgBouncer
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pgbouncer:&g_update_hosts
+  tasks:
+  - include_role: name=pgbouncer/update
+    when:
+    - upgrade_selector|strict_selects('pgbouncer') or upgrade_selector|strict_selects('all')
+    - can_upgrade_pgbouncer
+
+- name: Upgrade Barman
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_barman:&g_update_hosts
+  tasks:
+  - include_role: name=barman/update
+    vars:
+      target_backups: "{{ barman_backed_nodes|default([]) }}"
+    when: 
+    - upgrade_selector|strict_selects('barman') or upgrade_selector|strict_selects('all')
+    - can_upgrade_barman
+
+- name: Upgrade PG Backup API
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_barman:&g_update_hosts
+  tasks:
+  - include_role: name=pgbackupapi/update
+    when: 
+    - upgrade_selector|strict_selects('pg-backup-api') or upgrade_selector|strict_selects('all')
+    - enable_pg_backup_api|default(false)
+    - can_upgrade_pg_backup_api
+
+- name: Upgrade edb-pem-agent
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-agent:&g_update_hosts
+  tasks:
+  - include_role: name=pem/agent/update
+    when: 
+    - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
+    - can_upgrade_pem_agent
+
+- name: Upgrade edb-pem
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-server:&g_update_hosts
+  tasks:
+  - include_role: name=pem/server/update
+    when: 
+    - upgrade_selector|strict_selects('pem-server') or upgrade_selector|strict_selects('all')
+    - can_upgrade_pem_server
+
+- name: Restart pemagent service on PEM agents after server upgrade
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-agent
+  tasks:
+  - name: Restart pemagent service
+    service:
+      name: pemagent
+      state: restarted
+    when: 
+    - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
+    - can_upgrade_pem_agent

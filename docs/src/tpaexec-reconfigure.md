@@ -68,8 +68,8 @@ The following options control the form of the output:
 
 ## Sample invocation
 
-```
-$ tpaexec reconfigure ~/clusters/speedy\
+```shell
+tpaexec reconfigure ~/clusters/speedy\
   --architecture PGD-Always-ON\
   --pgd-proxy-routing local
 ```

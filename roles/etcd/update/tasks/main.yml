@@ -1,0 +1,33 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Include etcd-pre-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/etcd-pre-update.yml"
+
+- include_role: 
+    name: etcd/restart
+    tasks_from: restart-one.yml
+  vars:
+    etcd_service_end_state: stopped
+
+- include_role: name=etcd/pkg
+  vars:
+    allow_package_upgrades: yes
+
+- include_role: 
+    name: etcd/restart
+    tasks_from: restart-one.yml
+  vars:
+    etcd_service_end_state: started
+
+- name: Include etcd-post-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/etcd-post-update.yml"

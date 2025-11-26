@@ -118,3 +118,18 @@
       repo: "PackageHub/{{ ansible_distribution_version }}/{{ ansible_architecture }}"
     when:
       repo not in registration_status.stdout
+
+# PGDG extras repository provides packages like etcd
+- name: Enable PGDG extras
+  ini_file:
+    dest: /etc/zypp/repos.d/pgdg-sles-all.repo
+    create: no
+    section: "{{ _sles_extras }}"
+    option: enabled
+    value: '1'
+  when: >
+    'PGDG' in suse_repository_list|default(default_suse_repository_list)
+  vars:
+    _sles_extras: "{{
+        'pgdg-sles' + ansible_distribution_major_version|string + '-extras'
+      }}"

@@ -148,6 +148,8 @@ pgbouncer, and haproxy, according to the details of the architecture.
 
 * [Configure Barman](barman.md)
 * [Configure pgbouncer](pgbouncer.md)
+* [Configure etcd](etcd.md)
+* [Configure Patroni](patroni.md)
 * [Configure haproxy](haproxy.md)
 * [Configure HARP](harp.md)
 * [Configure EFM](efm.md)

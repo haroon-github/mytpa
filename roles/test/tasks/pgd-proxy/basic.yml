@@ -33,11 +33,9 @@
 # on some systems, unprivileged users can't run journalctl
 - name: Get current pgd-proxy version
   shell: >
-    journalctl -u pgd-proxy | grep -P "(?<=proxy version: \")([0-9]*\.[0-9]*\.[0-9]*)" -o | tail -1
+    pgd-proxy | head -n1 | grep -P "(?<=proxy version: \")([0-9]*\.[0-9]*\.[0-9]*)" -o
   register: pgdproxy_version
   changed_when: false
-  become: true
-  become_user: root
 
 # check that configuration matches
 # register the config summary

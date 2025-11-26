@@ -1,0 +1,148 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+# To use testing playbook in a cluster:
+# 1) Create a symlink to the EFM upgrade testing playbook in the cluster's commands directory
+#   ln -s ~/tpa-internal/architectures/lib/upgrade/upgrade-efm.yml commands/upgrade-efm.yml
+# 2) Change 'efm_version', provision and run the playbook
+#   tpaexec provision . && tpaexec upgrade-efm .
+
+- import_playbook: "{{ tpa_dir }}/architectures/lib/init.yml"
+  vars:
+    upgrade_in_progress: true
+  tags: always
+
+- import_playbook: "{{ tpa_dir }}/architectures/lib/dynamic_groups.yml"
+  tags: always
+
+- name: Run clusterwide health check before upgrade
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: all
+  tasks:
+  - when:
+    - "'efm' in role"
+    - fo_manager == "efm"
+    block: 
+    - name: Check if EFM is currently installed
+      include_role:
+        name: efm/pkg
+        tasks_from: check-installed.yml
+
+    - name: Check EFM health
+      include_role:
+        name: test
+        tasks_from: efm/basic.yml
+      vars:
+        efm_bin_dir: "{{ current_efm_bin_dir | default(_efm_bin_dir) }}"
+    vars:
+      # The check-installed task invoked above ensures the installed_efm_versions list is non-empty
+      # and contains only a single installed version, so we can safely use the 'first' filter. 
+      _efm_version: "{{ current_efm_version | default(installed_efm_versions | first) }}"
+      _efm_bin_dir: "/usr/edb/efm-{{ _efm_version }}/bin"
+      _efm_conf_dir: "/etc/edb/efm-{{ _efm_version }}"
+
+- name: Check if EFM version can be upgraded
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_efm
+  tasks:
+  - when:
+    - upgrade_selector|strict_selects('efm') or upgrade_selector|strict_selects('all')
+    - efm_version is defined
+    vars:
+      # The check-installed task invoked on EFM nodes in the previous play ensures the 
+      # installed_efm_versions list is non-empty and contains only a single installed version, 
+      # so we can safely use the 'first' filter. 
+      _efm_version: "{{ current_efm_version | default(installed_efm_versions | first) }}"
+      _efm_bin_dir: "/usr/edb/efm-{{ _efm_version }}/bin"
+      _efm_conf_dir: "/etc/edb/efm-{{ _efm_version }}"
+    block:
+    - name: Check if EFM can be updated to specified version  
+      include_role:
+        name: efm/pkg
+        tasks_from: check-update.yml
+
+    - name: "Check if existing EFM version {{ target_efm_version }} has binary and configuration directories"
+      include_role:
+        name: test
+        tasks_from: efm/check-bin-and-conf
+      vars:
+        fail_if_not_found: true
+        target_efm_version: "{{ _efm_version }}"
+        target_efm_bin_dir: "{{ current_efm_bin_dir | default(_efm_bin_dir) }}"
+        target_efm_conf_dir: "{{ current_efm_conf_dir | default(_efm_conf_dir) }}"
+
+    - name: "Check if upgrade target EFM version {{ target_efm_version }} already has binary and configuration directories"
+      include_role:
+        name: test
+        tasks_from: efm/check-bin-and-conf
+      vars:
+        fail_if_not_found: false
+        target_efm_version: "{{ efm_version }}"
+        target_efm_bin_dir: "{{ efm_bin_dir | default(_efm_bin_dir) }}"
+        target_efm_conf_dir: "{{ efm_conf_dir | default(_efm_conf_dir) }}"
+
+    - set_fact:
+        can_upgrade_efm: "{{ efm_package_update | default(true) }}"
+
+- name: Stop EFM cluster management before upgrade
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: g_chosen_primary
+  tasks:
+  - name: "Stop EFM {{ from_version }} for cluster {{ cluster_name }}"
+    command: "{{ target_efm_bin_dir }}/efm stop-cluster {{ cluster_name }}"
+    delegate_to: "{{ chosen_primary }}"
+    run_once: true
+    when:
+    - upgrade_selector|strict_selects('efm') or upgrade_selector|strict_selects('all')
+    - can_upgrade_efm
+    vars:
+      target_efm_bin_dir: "{{ current_efm_bin_dir | default(_efm_bin_dir) }}"
+      _efm_bin_dir: "/usr/edb/efm-{{ from_version }}/bin"
+      from_version: "{{ current_efm_version | default(installed_efm_versions | first) }}"
+      to_version: "{{ efm_version }}"
+
+- name: Upgrade EFM
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_efm
+  serial: 1
+  tasks:
+  - include_role: name=efm/update
+    when:
+    - upgrade_selector|strict_selects('efm') or upgrade_selector|strict_selects('all')
+    - can_upgrade_efm
+    vars:
+      from_version: "{{ current_efm_version | default(installed_efm_versions | first) }}"
+      to_version: "{{ efm_version }}"
+
+- name: Run post-upgrade health check for the cluster
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: all
+  tasks:
+  - name: Check EFM health
+    include_role:
+      name: test
+      tasks_from: efm/basic.yml
+    when:
+    - inventory_hostname == chosen_primary
+    - fo_manager == "efm"

@@ -1,0 +1,37 @@
+---
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+#
+# Removes a user from etcd if it exists.
+#
+# This task is idempotent and designed to be reusable.
+#
+# Expects the following variable to be defined:
+#
+# * username: (string) The username to remove.
+#
+# Uses the following facts, which should be set beforehand:
+# - etcdctl_options: (string) Pre-formatted options for etcdctl,
+#                    including endpoints, SSL, and auth credentials.
+
+- name: "Check if etcd user '{{ username }}' exists before attempting to remove"
+  command:
+    cmd: "etcdctl user get {{ username }} {{ etcdctl_options }}"
+  environment:
+    ETCDCTL_API: 3
+  register: user_check_result
+  changed_when: false
+  # This command is expected to fail if the user doesn't exist.
+  # We only want the playbook to fail if there's an unexpected error.
+  failed_when: >
+    user_check_result.rc == 1
+    and 'user name not found' not in user_check_result.stderr
+
+- name: "Remove the etcd user '{{ username }}'"
+  # This task only runs if the previous check succeeded (rc == 0), which
+  # means the user actually exists.
+  when: user_check_result.rc == 0
+  command:
+    cmd: "etcdctl user delete {{ username }} {{ etcdctl_options }}"
+  environment:
+    ETCDCTL_API: 3
+  changed_when: true

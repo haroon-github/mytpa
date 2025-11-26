@@ -1,0 +1,26 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Include pem-server-pre-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/pem-server-pre-update.yml"
+
+- name: Upgrade edb-pem server
+  include_role:
+    name: pem/server
+    tasks_from: upgrade.yml
+
+- name: Configure pem server after package update
+  include_role:
+    name: pem/server/config/final
+
+- name: Include pem-server-post-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/pem-server-post-update.yml"

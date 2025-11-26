@@ -90,10 +90,6 @@ runs:
 
         ./bin/tpaexec reconfigure "$CLUSTER" \
         --enable-connection-manager
-        # Ensure playbook uses the newly reconfigured variables
-        ./bin/tpaexec provision "$CLUSTER"
-
-        ln -vs ${{ inputs.source_directory }}/.github/workflows/5to6_upgrade/switch2cm.yml "$CLUSTER"/commands
 
         ./bin/tpaexec switch2cm "$CLUSTER" -vv
 

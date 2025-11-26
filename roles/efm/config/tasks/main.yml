@@ -2,6 +2,17 @@
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
+- name: Ensure efm_user_password_encryption is not md5 when compliance is stig
+  assert:
+    that:
+      - efm_user_password_encryption != 'md5'
+    fail_msg: >-
+      STIG compliance requires scram-sha-256 password encryption.
+      Please set efm_user_password_encryption to 'scram-sha-256' or remove the override.
+  when:
+    - compliance|default('') == 'stig'
+    - efm_user_password_encryption is defined
+
 - name: Ensure efm configuration directory exists
   file:
     path: "{{ efm_conf_dir }}"
@@ -36,7 +47,7 @@
   when: >
     failover_manager == "efm"
 
-# EFM requires MD5 authentication, but instead of storing an MD5 secret,
+# EFM stores the secret but it does that in an encrypted format,
 # it uses a homebrew "encryption" scheme that feeds the cluster name to
 # PBKDF2 to derive a key to encrypt the password. Also, there is no way
 # to run `efm encrypt` and provide the password non-interactively on
@@ -181,3 +192,11 @@
     owner: efm
     group: efm
     mode: "0750"
+
+- name: Include efm-post-config hook
+  include_tasks: "{{ hook }}"
+  when: >
+    lookup('first_found', dict(files=hook, skip=True))
+    and task_selector|permits('efm-post-config')
+  vars:
+    hook: "{{ cluster_dir }}/hooks/efm-post-config.yml"

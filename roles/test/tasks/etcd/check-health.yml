@@ -1,0 +1,22 @@
+---
+
+- name: Check etcd cluster health
+  command:
+    etcdctl endpoint health --endpoints="{{ etcd_endpoints }}"
+  environment:
+    ETCDCTL_API: 3
+  register: etcd_health_check
+  vars:
+    etcd_endpoints: "{{
+      groups['role_etcd']
+      |select_by_hostvar(hostvars, 'etcd_location', etcd_location)
+      |map('pyformat_hostvars', '{inventory_hostname}:{etcd_client_port}', hostvars)
+      |list
+      |join(',')
+    }}"
+
+- assert:
+    msg: >
+      etcd reported an unhealthy state for the cluster. Ensure cluster is in a healthy state before making any changes.
+      Also ensure the version of etcd in use supports the v3 API. Manual upgrade is required until this requirement is met.
+    that: etcd_health_check.rc == 0

@@ -1,0 +1,19 @@
+---
+
+- name: "Disable service for EFM version {{ target_version }}"
+  systemd:
+    name: "{{ service_name }}"
+    enabled: false
+
+- name: "Remove custom service file for EFM version {{ target_version }}"
+  file:
+    path: "/etc/systemd/system/{{ service_name }}.service"
+    state: absent
+
+- name: "Remove packages for EFM version {{ target_version }}"
+  package:
+    name:
+    - "{{ package_name }}" 
+    state: absent
+  vars:
+    versionNN: "{{ target_version|replace('.','') }}"

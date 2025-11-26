@@ -1,0 +1,39 @@
+---
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+#
+# Grants a role to a user in etcd if they do not already have it.
+#
+# This task is idempotent and designed to be reusable. It assumes the
+# user and role already exist.
+#
+# Expects the following variables to be defined:
+#
+# * username: (string) The username to grant the role to.
+# * rolename: (string) The name of the role to grant.
+#
+# Uses the following facts, which should be set beforehand:
+# - etcdctl_options: (string) Pre-formatted options for etcdctl,
+#                    including endpoints, SSL, and auth credentials.
+
+- name: "Check if etcd user '{{ username }}' already has the '{{ rolename }}' role"
+  command:
+    cmd: "etcdctl user get {{ username }} --detail {{ etcdctl_options }}"
+  environment:
+    ETCDCTL_API: 3
+  register: user_get_result
+  changed_when: false
+  failed_when: >
+    user_get_result.rc != 0
+
+- name: "Grant the '{{ rolename }}' role to the etcd user '{{ username }}'"
+  command:
+    cmd: "etcdctl user grant {{ username }} {{ rolename }} {{ etcdctl_options }}"
+  environment:
+    ETCDCTL_API: 3
+  changed_when: true
+  vars:
+    # Line expected in the output when the role had already been granted to the user.
+    _expected_role_line: "Role {{ rolename }}"
+  when:
+    - user_get_result.rc == 0
+    - _expected_role_line not in user_get_result.stdout_lines

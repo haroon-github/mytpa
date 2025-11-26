@@ -34,7 +34,7 @@
 # Extra tasks relevant only to the BDR major version upgrade are made
 # conditional on "bdr_major_version_upgrade" throughout.
 
-- name: Check preconditions to upgrade cluster {{ cluster_dir }}
+- name: Run BDR/PGD-specific health checks before upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
@@ -42,11 +42,9 @@
   environment: "{{ target_environment }}"
   hosts: role_bdr
   tasks:
-
   # We already know that a bdr_major_version_upgrade requires 5.2, so we
   # require at least 4.3 to start with, because older BDR versions don't
   # have an extension upgrade path to 5.2.
-
   - name: Ensure that BDR major version upgrades start from a recent version of BDR v4
     assert:
       that: all_bdr_versions|select('version', '4.3', '<')|list is empty
@@ -130,61 +128,72 @@
       and not bdr_major_version_upgrade
       and not harp_proxy_still_running
 
-  - name: Check pgbouncer configuration and status
-    include_role:
-      name: test
-      tasks_from: pgbouncer/basic.yml
-    when: >
-      'pgbouncer' in role
+# Ascertain the status/health of PgBouncer, pg-backup-api and Barman BEFORE upgrade
+# If any fail, the upgrade playbook will bail out.
+# NOTE: The Barman WAL-receiver is stopped after this play is run,
+# as we do not want new backup jobs to start mid-upgrade.
+- name: Import pre-upgrade common-component health-checks
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/pre_upgrade_checks.yml"
 
-# Before we start installing new packages on the nodes, we make any
-# changes to the repository configuration that may be required. For
-# example, during a BDR4→PGD5 upgrade, we have to switch to the new
-# Cloudsmith repositories.
-
-- name: Update repository configuration, if required
+- name: Check if pgd-proxy version can be upgraded
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: g_update_hosts
+  hosts: role_pgd-proxy:&g_update_hosts
   tasks:
-  - name: Configure local-repo, if available
-    include_role:
-      name: sys/local_repo
+  - when: >
+      upgrade_selector|strict_selects('pgd-proxy') or upgrade_selector|strict_selects('all')
+    block:
+    - name: Define pdg_proxy_package_version if not defined in config.yml
+      set_fact:
+        pgd_proxy_package_version: "{{ bdr_package_version }}"
+      when:
+      - pgd_proxy_package_version is not defined
+      - bdr_package_version is defined
 
-  - name: Set up repositories
-    include_role:
-      name: sys/repositories
+    - name: Check if pgd-proxy can be updated to specified package version  
+      include_role:
+        name: pgd_proxy/pkg
+        tasks_from: check-update.yml
+      when: 
+      - pgd_proxy_package_version is defined
 
-  # Do the repositories we configured actually contain the packages we
-  # need for the upgrade? Unfortunately, we can't always tell for sure,
-  # especially with upgrades, without actually trying to install them.
-  # Still, any errors we can catch now, before we stop Postgres on any
-  # instances, are most helpful.
-  #
-  # (In principle, we ought to check that every instance has ALL the
-  # packages it needs, e.g., pgd-proxy or pgbouncer. However, to avoid
-  # adding a lot of potentially-confusing noise to the process, and in
-  # light of the fact that there are very few repositories involved, it
-  # is enough to check that the major packages, i.e., Postgres/BDR, are
-  # available on one instance.)
+    - set_fact:
+        can_upgrade_pgd_proxy: "{{ pgd_proxy_package_update | default(true) }}"
 
-  - name: Check if required packages are available
-    include_role:
-      name: postgres/pkg
-      tasks_from: check-update.yml
-    vars:
-      upgrade_from: "{{ (bdr_major_version_upgrade)|ternary(4,5) }}"
-    when: >
-      'bdr' in role
-      and inventory_hostname == first_bdr_primary
+- name: Check if pgd-cli version can be upgraded
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_bdr:role_pgdcli:&g_update_hosts
+  tasks:
+  - when:
+    - upgrade_selector|strict_selects('pgdcli') or upgrade_selector|strict_selects('all')
+    - (('bdr' in role  or 'pgd-proxy' in role) and bdrdb_major_version is version('5', '<=')) or 'pgdcli' in role
+    block:
+    - name: Define pdgcli package version if not defined in config.yml
+      set_fact:
+        pgdcli_package_version: "{{ bdr_package_version }}"
+      when:
+      - pgdcli_package_version is not defined
+      - bdr_package_version is defined
+
+    - name: Check if pgd-cli can be updated to specified package version  
+      include_role:
+        name: pgdcli/pkg
+        tasks_from: check-update.yml
+      when: pgdcli_package_version is defined
+    
+    - set_fact:
+        can_upgrade_pgdcli: "{{ pgdcli_package_update | default(true) }}"
 
 # When doing a BDR major version upgrade, we start a program that stays
 # connected to the active proxies and repeatedly runs queries, reporting
 # on any interruptions (some brief interruptions are expected).
-
 - name: Start monitoring proxy downtime
   any_errors_fatal: true
   max_fail_percentage: 0
@@ -210,14 +219,13 @@
 # the command with ``-e update_hosts=a,b,c,…`` to control the order in
 # which we attempt the updates (for example, to make sure that primary
 # instances are updated last in the cycle).
-
 - name: Update postgres on instances in cluster {{ cluster_dir }}
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: g_update_hosts
+  hosts: role_postgres:&g_update_hosts:!role_pem-server
   serial: 1
   tasks:
   - name: Fence the node before upgrade
@@ -241,6 +249,9 @@
       and 'pem-server' not in role
 
   - name: Stop/update/restart Postgres on {{ inventory_hostname }}
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all') or bdr_major_version_upgrade
+    - can_upgrade_postgres
     block:
     - include_role: name=postgres/restart
       vars:
@@ -251,8 +262,6 @@
     - include_role: name=postgres/user
     - include_role: name=postgres/config
     - include_role: name=postgres/final
-    when: >
-      'postgres' in role
 
   - set_fact:
       any_harp_proxy_still_running:
@@ -298,33 +307,6 @@
     - "'bdr' in role"
     - "'replica' not in role"
 
-  # On instances that don't run Postgres, we can usually get away with a
-  # much simpler upgrade process.
-
-  - name: Stop/update/restart pgbouncer on {{ inventory_hostname }}
-    include_role:
-      name: pgbouncer
-      tasks_from: upgrade.yml
-    when: >
-      'pgbouncer' in role
-
-  - name: Stop/update/restart pgd-proxy on {{ inventory_hostname }}
-    include_role:
-      name: pgd_proxy
-      tasks_from: upgrade.yml
-    when: >
-      'pgd-proxy' in role
-      and not bdr_major_version_upgrade
-
-  - name: Update pgd-cli on {{ inventory_hostname }}
-    include_role:
-      name: pgdcli
-      tasks_from: upgrade.yml
-    when: >
-      'bdr' in role
-      or 'pgdcli' in role
-      or 'pgd-proxy' in role
-
   # Ansible won't stop execution if a host becomes unreachable, despite
   # the any_errors_fatal setting. We must detect that situation and fail
   # so that we don't proceed to the next host if something went wrong in
@@ -335,6 +317,35 @@
       msg: "One or more hosts are no longer reachable"
       that:
         ansible_play_hosts == ansible_play_hosts_all
+
+- name: Upgrade pgd-proxy
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pgd-proxy:&g_update_hosts
+  serial: 1
+  tasks:
+  - include_role: name=pgd_proxy/update
+    when: 
+    - upgrade_selector|strict_selects('pgd-proxy') or upgrade_selector|strict_selects('all')
+    - not bdr_major_version_upgrade
+    - can_upgrade_pgd_proxy
+
+- name: Upgrade pgd-cli
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_bdr:role_pgdcli:&g_update_hosts
+  tasks:
+  - include_role: name=pgdcli/update
+    when: 
+    - upgrade_selector|strict_selects('pgdcli') or upgrade_selector|strict_selects('all')
+    - (('bdr' in role  or 'pgd-proxy' in role) and bdrdb_major_version is version('5', '<=')) or 'pgdcli' in role
+    - can_upgrade_pgdcli
 
 - name: Update BDR v5-specific configuration
   any_errors_fatal: true
@@ -391,7 +402,6 @@
   environment: "{{ target_environment }}"
   hosts: role_harp-proxy:role_pgd-proxy:role_pgbouncer:&g_update_hosts
   tasks:
-
   - name: Set up pgd-proxy
     include_role:
       name: pgd_proxy
@@ -449,21 +459,6 @@
     when:
       inventory_hostname == first_bdr_primary
       and enable_proxy_monitoring
-
-- name: Log diagnostic output after upgrade
-  any_errors_fatal: true
-  max_fail_percentage: 0
-  become_user: root
-  become: yes
-  environment: "{{ target_environment }}"
-  hosts: role_bdr
-  tasks:
-  - name: Log pgd-cli diagnostic output
-    include_role:
-      name: test
-      tasks_from: pgd-cli/info.yml
-    when:
-      inventory_hostname == first_bdr_primary
 
 # The node-by-node upgrade process is now complete, and we have replaced
 # harp-proxy with pgd-proxy for a bdr_major_version_upgrade. The cluster
@@ -607,3 +602,29 @@
       state: absent
     when:
       harp_config.stat.exists
+
+- name: Run BDR/PGD-specific health checks after upgrade
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: all
+  tasks: 
+  - name: Run pgd-proxy checks
+    include_role:
+      name: test
+      tasks_from: pgd-proxy/basic.yml
+    when: >
+      'pgd-proxy' in role
+ 
+  - name: Log pgd-cli diagnostic output
+    include_role:
+      name: test
+      tasks_from: pgd-cli/info.yml
+    vars:
+      bdr_version: "{{ bdrdb_major_version }}" 
+    when:
+      - first_bdr_primary is defined
+      - inventory_hostname == first_bdr_primary
+      - (('bdr' in role  or 'pgd-proxy' in role) and bdrdb_major_version is version('5', '<=')) or 'pgdcli' in role

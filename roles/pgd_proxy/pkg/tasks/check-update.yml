@@ -1,0 +1,35 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- include_tasks: list-packages.yml
+  vars:
+    list_varname: _all_pgd_proxy_packages
+
+- name: Check if we can install the desired pgd-proxy packages
+  include_role:
+    name: pkg/install
+  vars:
+    package_list_name: "pgd-proxy packages"
+    package_list: "{{ _all_pgd_proxy_packages }}"
+    check_install_only: yes
+    result_varname: pgd_proxy_pkg_check
+
+- assert:
+    that: pgd_proxy_pkg_check is successful
+    fail_msg: >
+      Some packages are missing or the 'pgd_proxy_package_version' specified
+      in 'config.yml' cannot be satisfied.
+
+- debug:
+    msg: "The desired pgd_proxy_package_version or higher is already installed. Nothing to update."
+  when:
+  - pgd_proxy_pkg_check is successful 
+  - pgd_proxy_pkg_check.changed is false
+
+- set_fact:
+    pgd_proxy_package_update: "{{
+      pgd_proxy_pkg_check is defined 
+      and pgd_proxy_pkg_check is successful 
+      and pgd_proxy_pkg_check.changed is true
+    }}"

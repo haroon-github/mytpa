@@ -38,7 +38,7 @@
     umask 077 &&
     openssl req -new -nodes -newkey rsa:{{ openvpn_rsa_key_size }} -x509 -out ca.crt -keyout ca.key
     -subj '/C=GB/ST=Oxford/L=Oxford/O=2ndQuadrant/OU=2ndQuadrant TPA/CN={{ cluster_name }}'
-    -days 3650
+    -days {{ openssl_certificate_validity }}
   args:
     chdir: "{{ _local_cert_dir }}"
     creates: "ca.key"
@@ -53,7 +53,7 @@
     openssl req -new -nodes -newkey rsa:{{ openvpn_rsa_key_size }}
     -out "{{ inventory_hostname }}.csr" -keyout "{{ inventory_hostname }}.key"
     -subj '/C=GB/ST=Oxford/L=Oxford/O=2ndQuadrant/OU=2ndQuadrant TPA/CN={{ inventory_hostname }}'
-    -days 3650
+    -days {{ openssl_certificate_validity }}
   args:
     chdir: "{{ _local_cert_dir }}"
     creates: "{{ inventory_hostname }}.key"
@@ -72,7 +72,7 @@
     openssl x509 -req -CA ca.crt -CAkey ca.key -set_serial {{ node }}
     -in "{{ inventory_hostname }}.csr" -out "{{ inventory_hostname }}.crt"
     -extensions {{ openssl_extensions }} -extfile openssl.cnf
-    -days 3650 -sha256
+    -days {{ openssl_certificate_validity }} -sha256
   args:
     chdir: "{{ _local_cert_dir }}"
     creates: "{{ inventory_hostname }}.crt"

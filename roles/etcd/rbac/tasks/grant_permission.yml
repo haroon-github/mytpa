@@ -1,0 +1,61 @@
+---
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+#
+# Grants a permission on a key prefix to a role.
+#
+# This task is idempotent and designed to be reusable. It assumes the
+# role already exists.
+#
+# Expects the following variables to be defined:
+#
+# * rolename: (string) The name of the role to modify.
+# * permission: (string) The permission type to grant ('read', 'write', 'readwrite').
+# * prefix: (string) The key prefix to grant the permission on.
+#
+# Uses the following facts, which should be set beforehand:
+# - etcdctl_options: (string) Pre-formatted options for etcdctl,
+#                    including endpoints, SSL, and auth credentials.
+
+- name: "Check if etcd role '{{ rolename }}' already has the permission"
+  command:
+    cmd: "etcdctl role get {{ rolename }} --write-out json {{ etcdctl_options }}"
+  environment:
+    ETCDCTL_API: 3
+  register: role_check_result
+  changed_when: false
+
+- name: "Set fact for existing permission"
+  set_fact:
+    _permission_is_present: "{{ (check_query_result | length) > 0 }}"
+  vars:
+    # Get the list of permissions from the JSON output, default to empty list.
+    _perm_list: "{{ (role_check_result.stdout | from_json).get('perm', []) }}"
+
+    # Base64-encode the prefix to match the key format in the JSON output.
+    _expected_key_b64: "{{ prefix | b64encode }}"
+
+    # Define the JMESPath queries for each permission type.
+    _read_query: "[?key == '{{ _expected_key_b64 }}' && (permType == `0` || permType == null)]"
+    _write_query: "[?key == '{{ _expected_key_b64 }}' && permType == `1`]"
+    _readwrite_query: "[?key == '{{ _expected_key_b64 }}' && permType == `2`]"
+
+    # Create a map to select the correct query based on the 'permission' variable.
+    _query_map:
+      read: "{{ _read_query }}"
+      write: "{{ _write_query }}"
+      readwrite: "{{ _readwrite_query }}"
+
+    # Get the final query string to use.
+    _final_query: "{{ _query_map[permission] }}"
+
+    # Run the query. The result is a list of matching permissions.
+    check_query_result: "{{ _perm_list | json_query(_final_query) }}"
+
+# This task will only run if the check task found no existing permission.
+- name: "Grant '{{ permission }}' on prefix '{{ prefix }}' to role '{{ rolename }}'"
+  command:
+    cmd: "etcdctl role grant-permission {{ rolename }} --prefix=true {{ permission }} {{ prefix }} {{ etcdctl_options }}"
+  environment:
+    ETCDCTL_API: 3
+  changed_when: true
+  when: not _permission_is_present

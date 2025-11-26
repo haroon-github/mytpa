@@ -2,6 +2,56 @@
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
+# If basic authentication is required, we ask for one of the etcd hosts to create a role
+# and user for Patroni usage. It's easier to delegate to an etcd host as they have all
+# the facts set up, including authentication for the root user through etcdctl_options.
+- name: Set up etcd user for Patroni
+  when: >
+    etcd_authentication_mode == 'basic'
+  run_once: true
+  delegate_to: "{{ groups['role_etcd'][0] }}"
+  delegate_facts: true
+  block:
+    - name: "Create the etcd patroni role"
+      include_role:
+        name: etcd/rbac
+        tasks_from: create_role.yml
+      vars:
+        rolename: patroni
+
+    - name: "Grant readwrite permission to the patroni role"
+      include_role:
+        name: etcd/rbac
+        tasks_from: grant_permission.yml
+      vars:
+        rolename: patroni
+        permission: readwrite
+        # Patroni uses namespace + scope as the key prefix in the DCS, so we reproduce
+        # that prefix here for granting privileges to the patroni role.
+        # We use regex_replace to remove trailing '/', if the namespace set by the user
+        # contains any trailing slash.
+        prefix: "{{ patroni_dcs_namespace|regex_replace('\/$', '') }}/{{ postgres_cluster_name }}"
+
+    - name: "Create the etcd '{{ patroni_etcd_user }}' user"
+      include_role:
+        name: etcd/rbac
+        tasks_from: create_user.yml
+      vars:
+        username: "{{ patroni_etcd_user }}"
+        password: "{{ vars['%s_password' % patroni_etcd_user] }}"
+
+    - name: "Grant the patroni role to the etcd '{{ patroni_etcd_user }}' user"
+      include_role:
+        name: etcd/rbac
+        tasks_from: grant_role.yml
+      vars:
+        username: "{{ patroni_etcd_user }}"
+        rolename: patroni
+  vars:
+    # As a delegated task runs with the vars of this Patroni host, we borrow the required
+    # vars from the etcd host being used.
+    etcdctl_options: "{{ hostvars[groups['role_etcd'][0]].etcdctl_options }}"
+
 - include_tasks: init.yml
   when:
     not patroni_initialised

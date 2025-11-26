@@ -45,12 +45,12 @@ on:
         default: 16
         type: choice
         options:
-        - 12
         - 13
         - 14
         - 15
         - 16
         - 17
+        - 18
       tpa_postgres_package_version:
         description: "package version to upgrade from"
         required: true
@@ -96,7 +96,7 @@ jobs:
     steps:
       - name: Checkout source repository
         id: checkout-source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: EnterpriseDB/tpa-internal
           token: ${{secrets.GH_SLONIK}}

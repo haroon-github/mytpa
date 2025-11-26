@@ -24,7 +24,7 @@
   - set_fact:
       bdrdb_major_version:
         "{{ cluster_facts.databases[bdr_database].bdr.bdr_major_version }}"
-  
+
   - set_fact:
       bdrdb_version:
         "{{ cluster_facts.databases[bdr_database].bdr.bdr_version}}"
@@ -36,7 +36,7 @@
         - bdrdb_major_version is version('6', '==')
         - "'Essential' in bdrdb_version"
       fail_msg: >-
-        This upgrade process supports minor upgrades for PGD version 6 for 
+        This upgrade process supports minor upgrades for PGD version 6 for
         PGD-S (Essential) clusters
 
   - name: Collect list of all unique PGD versions from all nodes
@@ -51,7 +51,7 @@
     vars:
       _versions:
         "{{ groups['role_bdr']|bdr_node_versions(hostvars) }}"
-  
+
   - name: "Record whether all nodes are currently running BDR version {{ bdr_version }}"
     set_fact:
       bdr6_minor_version_upgrade:
@@ -62,6 +62,27 @@
       that: bdr6_minor_version_upgrade is true
       fail_msg: >
         PGD-S architecture only supports minor-version upgrades of Postgres and PGD v6 software.
+
+- import_playbook: "{{ tpa_dir }}/architectures/lib/dynamic_groups.yml"
+  tags: always
+
+- name: Set upgrade facts for all hosts
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: all
+  tasks:
+  - name: Propagate minor version fact to non bdr nodes
+    set_fact:
+      bdr6_minor_version_upgrade:
+        "{{ groups['role_bdr']
+            |map('extract', hostvars, 'bdr6_minor_version_upgrade')
+            |select('defined')
+            |first }}"
+    when: >
+      "bdr" not in role
 
 - name: Generate dynamic groups for upgrade
   any_errors_fatal: true

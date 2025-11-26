@@ -71,12 +71,13 @@
   - name: Ensure all nodes are in sync
     assert:
       that: >
-        (xlog_values|unique|length) == 1
+        (sync_values|unique|length) == 1
       fail_msg: >
-        xlog value is not the same for all nodes, nodes are not in sync
-        xlog: {{ xlog_values }}
+        {{ sync }} value is not the same for all nodes, nodes are not in sync
+        {{ sync }}: {{ sync_values }}
       success_msg: >
-        All nodes xlog values are in sync at: {{ xlog_values|unique }}
-
+        All nodes {{ sync }} values are in sync at: {{ sync_values|unique }}
     vars:
-      xlog_values: "{{ efm_cluster_info|json_query('nodes.*.xlog') }}"
+      sync_values: "{{ efm_cluster_info|json_query(query) }}"
+      query: "{{ efm_version is version('5', '>=') | ternary('nodes.*.lsn', 'nodes.*.xlog') }}"
+      sync: "{{ efm_version is version('5', '>=') | ternary('lsn', 'xlog') }}"

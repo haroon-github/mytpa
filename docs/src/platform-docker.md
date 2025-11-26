@@ -16,10 +16,10 @@ configurations. It is not meant for production use.
 
 Just select the platform at configure-time:
 
-```bash
-[tpa]$ tpaexec configure clustername --platform docker […]
-[tpa]$ tpaexec provision clustername
-[tpa]$ tpaexec deploy clustername
+```shell
+tpaexec configure clustername --platform docker […]
+tpaexec provision clustername
+tpaexec deploy clustername
 ```
 
 ## Operating system selection
@@ -33,10 +33,6 @@ Use `--os-image some/image:name` to specify an existing
 systemd-enabled image instead. For example, the
 [centos/systemd](https://hub.docker.com/r/centos/systemd/)
 image (based on CentOS 7) can be used in this way.
-
-TPA does not support Debian 8 (jessie) or Ubuntu 16.04 (xenial) for
-Docker containers, because of bugs in the old version of systemd shipped
-on those distributions.
 
 ## Installing Docker
 
@@ -64,17 +60,17 @@ If you need to use RHEL 7 instances but your host is running cgroups
 version 2, you can switch to cgroups version 1 as follows.
 
 On Debian-family Linux distributions:
-```
-$ echo 'GRUB_CMDLINE_LINUX=systemd.unified_cgroup_hierarchy=false' > \
+```shell
+echo 'GRUB_CMDLINE_LINUX=systemd.unified_cgroup_hierarchy=false' > \
   /etc/default/grub.d/cgroup.cfg
-$ update-grub
-$ reboot
+update-grub
+reboot
 ```
 
 On RedHat-family Linux distributions:
-```
-$ grubby --args=systemd.unified_cgroup_hierarchy=false --update-kernel=ALL
-$ reboot
+```shell
+grubby --args=systemd.unified_cgroup_hierarchy=false --update-kernel=ALL
+reboot
 ```
 On MacOS:
 
@@ -90,8 +86,10 @@ Docker daemon (typically by being a member of the `docker` group that
 owns `/var/run/docker.sock`). Run a command like this to check if you
 have access:
 
-```bash
-[tpa]$ docker version --format '{{.Server.Version}}'
+```shell
+docker version --format '{{.Server.Version}}'
+```
+```output
 19.03.12
 ```
 
@@ -114,8 +112,10 @@ If you require your containers to run in privileged mode, set the `privileged`
 boolean variable for the instance(s) that need it, or globally in
 `instance_defaults`, e.g.:
 
-    instance_defaults:
-      privileged: true
+```yaml
+  instance_defaults:
+    privileged: true
+```
 
 !!! Warning
 Running containers in privileged mode allows the root user or any
@@ -133,9 +133,11 @@ increase their privileges. setuid binaries are restricted, etc. Enable this in
 tpaexec with the `instance_defaults` or per-container variable
 `docker_security_opts`:
 
-    instance_defaults:
-      docker_security_opts:
-        - no-new-privileges
+```yaml
+instance_defaults:
+  docker_security_opts:
+    - no-new-privileges
+```
 
 Other arguments to `docker run`'s `--security-opts` are also accepted, e.g.
 SELinux user and role.
@@ -153,12 +155,14 @@ Docker's `--cap-drop` is also supported via the `docker_cap_drop` list.
 For example, to run a container as unprivileged, but give it the ability to
 modify the system clock, you might write:
 
-    instance_defaults:
-      privileged: false
-      docker_cap_add:
-        - sys_time
-      docker_cap_drop:
-        - all
+```yaml
+instance_defaults:
+  privileged: false
+  docker_cap_add:
+    - sys_time
+  docker_cap_drop:
+    - all
+```
 
 ### Docker storage configuration
 
@@ -168,7 +172,7 @@ deployments. Run `docker info` to check which storage driver you are
 using. If you are using the loopback scheme, you will see something
 like this:
 
-```
+```output
  Storage Driver: devicemapper
   …
   Data file: /dev/loop0
@@ -191,7 +195,7 @@ your network interfaces using the command `ipconfig | grep mtu`,
 provisioned by TPA by adding the appropriate driver options to the
 network in `config.yml` as shown below.
 
-```shell
+```yaml
 docker_networks:
 - ipam_config:
   - subnet: 10.33.214.192/28
@@ -215,9 +219,9 @@ only works when the MTU has been explicitly set.
 All of the docker containers in a cluster can be started and stopped
 together using the `start-containers` and `stop-containers` commands:
 
-```bash
-[tpa]$ tpaexec start-containers clustername
-[tpa]$ tpaexec stop-containers clustername
+```shell
+tpaexec start-containers clustername
+tpaexec stop-containers clustername
 ```
 
 These commands don't provision or deprovision containers, or even
@@ -228,6 +232,6 @@ available for future use.
 For a summary of the provisioned docker containers in a cluster,
 whether started or stopped, use the `list-containers` command:
 
-```bash
-[tpa]$ tpaexec list-containers clustername
+```shell
+tpaexec list-containers clustername
 ```

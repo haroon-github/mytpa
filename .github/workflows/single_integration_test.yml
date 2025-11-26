@@ -47,7 +47,6 @@ on:
         options:
         - tpa/ubuntu:22.04
         - tpa/ubuntu:24.04
-        - tpa/debian:9
         - tpa/debian:10
         - tpa/debian:11
         - tpa/debian:12
@@ -71,13 +70,12 @@ on:
         default: "16"
         type: choice
         options:
-        - 11
-        - 12
         - 13
         - 14
         - 15
         - 16
         - 17
+        - 18
       tpa_failover_manager:
         description: "Failover-manager (for M1 only)"
         type: choice
@@ -126,13 +124,13 @@ jobs:
     steps:
       - name: Checkout source repository
         id: checkout-source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: EnterpriseDB/tpa-internal
           token: ${{ env.GITHUB_TOKEN }}
 
       - name: Checkout foundation repository branch/tag ${{ env.FOUNDATION_VER }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: EnterpriseDB/foundation-packaging
           ref: ${{ env.FOUNDATION_VER }}

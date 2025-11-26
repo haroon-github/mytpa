@@ -7,8 +7,8 @@ description: Incorporating pgd-proxy into your TPA deployed PGD 5 cluster.
 
 By default, TPA installs the latest available version of `pgd-proxy`.
 
-The version of the `pgd-proxy` package that is installed can be specified 
-by including `pgd_proxy_package_version: xxx` under the `cluster_vars` 
+The version of the `pgd-proxy` package that is installed can be specified
+by including `pgd_proxy_package_version: xxx` under the `cluster_vars`
 section of the `config.yml` file.
 
 ```yaml
@@ -56,7 +56,7 @@ installed (e.g., to install additional configuration files).
 Group-level options related to pgd-proxy can be set under
 `bdr_node_groups` along with other node group options:
 
-```
+```yaml
 cluster_vars:
   bdr_node_groups:
   - name: group1
@@ -71,7 +71,7 @@ Note that `enable_proxy_routing` must be explicitly set to `true` for pgd-proxy 
 Node-level options related to pgd-proxy can be set under
 `bdr_node_options` on any PGD instance:
 
-```
+```yaml
 instances:
 - Name: first
   vars:
@@ -86,7 +86,7 @@ it is attached to, can be set under `default_pgd_proxy_options` under
 `cluster_vars` (which applies to all proxies), or under
 `pgd_proxy_options` on any pgd-proxy instance:
 
-```
+```yaml
 cluster_vars:
   default_pgd_proxy_options:
     listen_port: 6432
@@ -101,7 +101,7 @@ instances:
 ```
 
 In this case, while other instances will get their `listen_port` setting from
-`cluster_vars`, `someproxy` overrides that default setting and configures its 
+`cluster_vars`, `someproxy` overrides that default setting and configures its
 own `listen_port` in the instances' `vars` section.
 
 ### PGD proxy http(s) health probes
@@ -114,7 +114,7 @@ all the settings that defines the http(s) api which live under the `http`
 subsection of the `proxy` top section of `pgd-proxy-config.yml`.
 
 The variable can contain these keys:
-```
+```yaml
 enable: false
 secure: false
 cert_file: "/etc/tpa/harp_proxy/harp_proxy.crt"
@@ -140,3 +140,29 @@ The CA certificate can be found on the cluster directory on the TPA node at:
 `<cluster_dir>/ssl/CA.crt` after `deploy`.
 
 see pgd-proxy documentation for more information on the available api endpoints.
+
+## Updating pgd-proxy using `tpaexec upgrade`
+
+When trying to upgrade to a specific package version, ensure the `pgd_proxy_package_version` in
+`config.yml` is updated to reflect the desired version. This version should be kept in line with
+the `bdr_package_version` and `pgdcli_package_version` versions specified for the cluster.
+Defining `bdr_package_version` and omitting `pgd_proxy_package_version` and `pgdcli_package_version`
+from `config.yml` will ensure the same value is used across all three components.
+
+The desired version can also be passed as an extra argument to the `tpaexec upgrade` command with:
+
+```shell
+tpaexec upgrade <cluster_dir> \
+  -e pgd_proxy_package_version="<desired version>" \
+  --components=pgd-proxy
+```
+
+Refer to the section on
+[package version selection and upgrade](tpaexec-upgrade.md#package-version-selection) for more
+information.
+
+To select pgd-proxy for upgrade, ensure the `--components` flag passed to the `tpaexec upgrade`
+command contains `pgd-proxy` (or `all`)
+
+Refer to the section on [component selection for upgrade](tpaexec-upgrade.md#component-selection)
+for more information.

@@ -1,0 +1,123 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+# To use testing playbook in a cluster:
+# 1) Create a symlink to the pem upgrade testing playbook in the cluster's commands directory
+#   ln -s ~/tpa-internal/architectures/lib/upgrade/upgrade-pem.yml commands/upgrade-pem.yml
+# 2) Change 'pem_package_version', provision and run the playbook
+#   tpaexec provision . && tpaexec upgrade-pem .
+
+- import_playbook: "{{ tpa_dir }}/architectures/lib/init.yml"
+  vars:
+    upgrade_in_progress: true
+  tags: always
+
+- import_playbook: "{{ tpa_dir }}/architectures/lib/dynamic_groups.yml"
+  tags: always
+
+- name: Run clusterwide checks before upgrade
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: all
+  tasks:  
+  - name: Ensure upgrade is not invoked for a shared PEM cluster
+    fail: "Upgrading PEM is not supported for shared PEM servers"
+    when: (pem_shared|default(false)) is true
+
+- name: Check if edb-pem-agent version can be upgraded on PEM agents
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-agent:&g_update_hosts
+  tasks:
+  - when:
+    - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
+    block:
+    - name: Check if libcurl-minimal is installed
+      package_facts:
+        manager: auto
+
+    - name: Check if edb-pem-agent can be updated to specified package version  
+      include_role:
+        name: pem/agent/pkg
+        tasks_from: check-update.yml
+      when: 
+      - pem_agent_package_version is defined
+      - "not 'libcurl-minimal' in ansible_facts.packages"
+    
+    - set_fact:
+        can_upgrade_pem_agent: "{{ pem_agent_package_update | default(true) }}"
+
+- name: Check if edb-pem version can be upgraded on PEM servers
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-server:&g_update_hosts
+  tasks:
+  - when:
+    - upgrade_selector|strict_selects('pem-server') or upgrade_selector|strict_selects('all')
+    block:
+    - include_role:
+        name: pem/server/facts
+        tasks_from: pem-version.yml
+      
+    - name: Check if edb-pem can be updated to specified package version  
+      include_role:
+        name: pem/server/pkg
+        tasks_from: check-update.yml
+      when: 
+      - pem_server_package_version is defined
+      - pem_is_v10_or_higher
+    
+    - set_fact:
+        can_upgrade_pem_server: "{{ pem_server_package_update | default(true) }}"
+
+- name: Upgrade edb-pem-agent
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-agent:&g_update_hosts
+  tasks:
+  - include_role: name=pem/agent/update
+    when: 
+    - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
+    - can_upgrade_pem_agent
+
+- name: Upgrade edb-pem
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-server:&g_update_hosts
+  tasks:
+  - include_role: name=pem/server/update
+    when: 
+    - upgrade_selector|strict_selects('pem-server') or upgrade_selector|strict_selects('all')
+    - can_upgrade_pem_server
+
+- name: Restart pemagent service on PEM agents after server upgrade
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_pem-agent:&g_update_hosts
+  tasks:
+  - name: Restart pemagent service
+    service:
+      name: pemagent
+      state: restarted
+    when: 
+    - upgrade_selector|strict_selects('pem-agent') or upgrade_selector|strict_selects('all')
+    - can_upgrade_pem_agent

@@ -6,6 +6,15 @@
   vars:
     upgrade_in_progress: true
   tags: always
+  
+- import_playbook: "{{ tpa_dir }}/architectures/lib/dynamic_groups.yml"
+  tags: always
+
+# We must check that 'tpaexec upgrade' is not run on a cluster 
+# that uses shared PEM or share Barman 
+# ('pem_shared' or 'barman_shared' are 'true') in the 'config.yml'
+- name: Import upgrade precondition checks
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/upgrade_preconditions.yml"
 
 # We must perform a minor-version update of Postgres and BDR on a
 # running cluster while maintaining overall cluster availability.
@@ -43,7 +52,6 @@
       bdrdb_major_version:
         "{{ cluster_facts.databases[bdr_database].bdr.bdr_major_version }}"
 
-
 - name: Collect update facts for cluster {{ cluster_dir }}
   any_errors_fatal: true
   max_fail_percentage: 0
@@ -52,7 +60,6 @@
   environment: "{{ target_environment }}"
   hosts: all
   tasks:
-
   # Set the bdrdb_major_version on non bdr node
   # used for pgd-cli to ensure we install configuration file
   # if upgrading from bdr3 to bdr4.
@@ -66,26 +73,17 @@
 
   # Set all_haproxy_backend_servers and proxies_for_backend_server, as
   # well as my_haproxies.
-
   - include_role:
       name: haproxy
       tasks_from: map-backend-proxies.yml
 
-  # As a precaution, we start the update only if the servers are healthy
-  # and match the expected configuration. It's convenient to do this by
-  # just rerunning the basic pgbouncer and haproxy tests.
-  #
-  # This does mean that if the update leaves a backend server in "maint"
-  # state because a package installation fails, it will have to be fixed
-  # by hand before retrying the update with a fixed configuration.
-
-  - name: Check pgbouncer configuration and status
-    include_role:
-      name: test
-      tasks_from: pgbouncer/basic.yml
-    when: >
-      'pgbouncer' in role
-
+  # # As a precaution, we start the update only if the servers are healthy
+  # # and match the expected configuration. It's convenient to do this by
+  # # just rerunning the basic pgbouncer and haproxy tests.
+  # #
+  # # This does mean that if the update leaves a backend server in "maint"
+  # # state because a package installation fails, it will have to be fixed
+  # # by hand before retrying the update with a fixed configuration.
   - name: Check haproxy configuration and status
     include_role:
       name: test
@@ -93,35 +91,82 @@
     when: >
       'haproxy' in role
 
-# Now that we're convinced the cluster is in a reasonable initial state,
-# we start the update process one by one on the instances. You can run
-# the command with ``-e update_hosts=a,b,c,…`` to control the order in
-# which we attempt the updates (for example, to make sure that primary
-# instances are updated last in the cycle).
-
-- name: Update repository configuration, if required
+- name: Run pgdcli-specific health checks before upgrade, if applicable
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: "{{ update_hosts|default('all') }}"
+  hosts: all
+  tasks: 
+  - name: Log pgd-cli diagnostic output
+    include_role:
+      name: test
+      tasks_from: pgd-cli/info.yml
+    vars:
+      bdr_version: "{{ bdrdb_major_version }}" 
+    when:
+      - first_bdr_primary is defined
+      - inventory_hostname == first_bdr_primary
+      - "'pgdcli' in role"
+      - upgrade_selector|strict_selects('pgdcli') or upgrade_selector|strict_selects('all')
+
+# Ascertain the status/health of PgBouncer, pg-backup-api and Barman BEFORE upgrade
+# If any fail, the upgrade playbook will bail out.
+# NOTE: The Barman WAL-receiver is stopped after this play is run,
+# as we do not want new backup jobs to start mid-upgrade.
+- name: Import pre-upgrade common-component health-checks
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/pre_upgrade_checks.yml"
+
+# Ensure repositories are up-to-date before checking against component
+# software versions that can be installed.
+- name: Import repository update
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/repository_update.yml"
+
+# Ensure any selected component software versions are not currently installed
+# or are not able to be resolved (determined by the package manager in 'dry-run' mode)
+- name: Check if all desired common-components are able to be upgraded
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/check_upgrade_components.yml"
+
+- name: Check if pgd-cli version can be upgraded
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_bdr:role_pgdcli:&g_update_hosts
   tasks:
-  - name: Configure local-repo, if available
-    include_role:
-      name: sys/local_repo
+  - when:
+    - upgrade_selector|strict_selects('pgdcli') or upgrade_selector|strict_selects('all')
+    block:
+    - name: Define pdgcli package version if not defined in config.yml
+      set_fact:
+        pgdcli_package_version: "{{ bdr_package_version }}"
+      when:
+      - pgdcli_package_version is not defined
+      - bdr_package_version is defined
 
-  - name: Set up repositories
-    include_role:
-      name: sys/repositories
+    - name: Check if pgd-cli can be updated to specified package version  
+      include_role:
+        name: pgdcli/pkg
+        tasks_from: check-update.yml
+      when: pgdcli_package_version is defined
+    
+    - set_fact:
+        can_upgrade_pgdcli: "{{ pgdcli_package_update | default(true) }}"
 
+# Now that we're convinced the cluster is in a reasonable initial state,
+# we start the update process one by one on the instances. You can run
+# the command with ``-e update_hosts=a,b,c,…`` to control the order in
+# which we attempt the updates (for example, to make sure that primary
+# instances are updated last in the cycle).
 - name: Update postgres on instances in cluster {{ cluster_dir }}
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: "{{ update_hosts|default('all') }}"
+  hosts: role_postgres:&g_update_hosts:!role_pem-server
   serial: 1
   tasks:
 
@@ -171,6 +216,10 @@
   # replace a primary in case of a failover.
 
   - name: Stop/update/restart Postgres on {{ inventory_hostname }}
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - "'postgres' in role and 'pem-server' not in role"
+    - can_upgrade_postgres
     block:
     - include_role: name=postgres/restart
       vars:
@@ -185,28 +234,6 @@
         postgres_service_end_state: started
       when: >
         'replica' not in role
-    when: >
-      'postgres' in role
-      and 'pem-server' not in role
-
-  - name: Upgrade postgres instance on the pem server
-    block:
-    - include_role: name=postgres/restart
-    - include_role: name=postgres/update
-    - include_role: name=postgres/config
-    - include_role: name=postgres/restart
-    - include_role: name=postgres/config/final
-      vars:
-        postgres_service_end_state: started
-    when: >
-      'pem-server' in role
-
-  - name: Stop/update/restart pgbouncer on {{ inventory_hostname }}
-    include_role:
-      name: pgbouncer
-      tasks_from: upgrade.yml
-    when: >
-      'pgbouncer' in role
 
   - name: Stop/update/restart etcd on {{ inventory_hostname }}
     include_role:
@@ -216,21 +243,20 @@
       'etcd' in role
 
   - name: Upgrade pgd-cli on {{ inventory_hostname }}
+    when: 
+    - upgrade_selector|strict_selects('pgdcli') or upgrade_selector|strict_selects('all')
+    - "'pgdcli' in role"
+    - can_upgrade_pgdcli
     block:
-      - name: Upgrade pgdcli package
-        include_role:
-          name: pgdcli
-          tasks_from: upgrade.yml
-
+      - name: Update pgdcli package
+        include_role: name=pgdcli/update
+      
       - name: Configure pgdcli when upgrading from bdr3
         include_role:
           name: pgdcli/config
         when:
         - bdrdb_major_version|int == 3
         - bdr_version is version('4', '>=')
-    when: >
-      ('bdr' in role and bdr_version is version('4', '>='))
-      or 'pgdcli' in role
 
   # After we update one instance in a CAMO pair, we must wait for its
   # partner to catch up. If we stop the partner before it is ready, we
@@ -293,9 +319,8 @@
   environment: "{{ target_environment }}"
   hosts: "role_bdr"
   tasks:
-
-  - block:
-
+  - when: inventory_hostname == first_bdr_primary
+    block:
     # we expect all node to haave gone through upgrade process so we
     # only check that we effectively upgraded to 4.3+ on first_bdr_primary
     # before trying to make the change.
@@ -333,5 +358,36 @@
       when: >
         query_version.bdr_version_num >= 40300
 
-    when: >
-      inventory_hostname == first_bdr_primary
+# This will update PgBouncer, pg-backup-api, Barman, PEM server and PEM agent 
+# if they are selected components and their packages are able to be upgraded. 
+# Otherwise, their respective upgrade plays are skipped.
+- name: Update all desired common cluster components that are able to be upgraded
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/components_upgrade.yml"
+
+# Ascertain the status/health of PgBouncer, pg-backup-api and Barman AFTER upgrade
+# If any fail, the upgrade playbook will bail out.
+# NOTE: The Barman WAL-receiver is started after this play is run,
+# since we stopped it as part of the pre-upgrade checks. It may have already
+# been started if Barman was upgraded (which makes the service start here a no-op)
+- name: Import post-upgrade health-checks for common components in the cluster
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/post_upgrade_checks.yml"
+
+- name: Run pgdcli-specific health checks after upgrade, if applicable
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: all
+  tasks: 
+  - name: Log pgd-cli diagnostic output
+    include_role:
+      name: test
+      tasks_from: pgd-cli/info.yml
+    vars:
+      bdr_version: "{{ bdrdb_major_version }}" 
+    when:
+      - first_bdr_primary is defined
+      - inventory_hostname == first_bdr_primary
+      - "'pgdcli' in role"
+      - upgrade_selector|strict_selects('pgdcli') or upgrade_selector|strict_selects('all')

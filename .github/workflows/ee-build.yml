@@ -45,7 +45,7 @@ jobs:
     # checkout tpa-internal required to build the EE
     - name: Checkout tpa-internal
       id: checkout-tpa-internal
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         repository: EnterpriseDB/tpa-internal
         token: ${{secrets.GH_SLONIK}}
@@ -99,7 +99,7 @@ jobs:
         --squash new
 
     - name: Archive build folder
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: build_artifact
         path: ./tpa-ee/aap24/${{ github.event.inputs.base-image == 'RHEL' && 'rhel' || 'alpine' }}

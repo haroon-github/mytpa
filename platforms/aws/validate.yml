@@ -72,34 +72,15 @@
   set_fact:
     aws_regions: "{{ aws_instances|map(attribute='region')|unique|list }}"
 
-# https://docs.aws.amazon.com/general/latest/gr/rande.html lists the
-# valid AWS regions.
+- name: Get main constants module
+  tpa_constants:
+  register: tpa_constants
 
 - name: Ensure region references are valid
   assert:
     msg: "Region {{ item }} is not a valid AWS region"
-    that: item in aws_known_regions
-  with_items: "{{ aws_regions }}"
-  vars:
-    aws_known_regions:
-      - us-east-1
-      - us-east-2
-      - us-west-1
-      - us-west-2
-      - ap-south-1
-      - ap-northeast-1
-      - ap-northeast-2
-      - ap-northeast-3
-      - ap-southeast-1
-      - ap-southeast-2
-      - ca-central-1
-      - cn-north-1
-      - eu-north-1
-      - eu-central-1
-      - eu-west-1
-      - eu-west-2
-      - eu-west-3
-      - sa-east-1
+    that: item in tpa_constants.aws_supported_regions
+  with_items: "{{ tpa_constants.aws_supported_regions }}"
 
 # Older config.yml files will specify ec2_vpc_subnets but not locations,
 # whereas newer ones will specify locations but not ec2_vpc_subnets. The

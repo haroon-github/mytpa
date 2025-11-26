@@ -8,3 +8,4 @@
     package_lists:
       - "{{ default_unwanted_packages[ansible_distribution] }}"
       - "{{ unwanted_packages[ansible_distribution]|default([]) }}"
+      - "{{ unwanted_packages['common']|default([]) }}"

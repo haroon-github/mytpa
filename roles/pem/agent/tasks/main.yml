@@ -4,5 +4,7 @@
 
 - include_role:
     name: pem/agent/pkg
+  vars:
+    _allowerasing: "{{ ansible_os_family == 'RedHat' }}"
   when: >
     task_selector|selects('pem-agent', 'pkg')

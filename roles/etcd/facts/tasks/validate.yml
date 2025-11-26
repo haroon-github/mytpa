@@ -1,0 +1,27 @@
+---
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+# These assertions are made once early during TPA init phase
+
+- name: Ensure 'etcd_authentication_mode' value is valid
+  assert:
+    that:
+      etcd_authentication_mode in ['none', 'basic', 'mtls']
+    fail_msg: >
+      You need to set 'etcd_authentication_mode' to one of the following values:
+
+      * 'none'
+      * 'basic'
+      * 'mtls'
+
+      Refer to the TPA documentation for more information.
+
+- name: Ensure the configured etcd SSL settings are valid
+  assert:
+    that:
+      etcd_ssl_enabled is true
+    fail_msg: >
+      You need to set 'etcd_ssl_enabled' as 'true' if you want mTLS authentication.
+      Refer to the TPA documentation for more information.
+  when: >
+    etcd_authentication_mode == 'mtls'

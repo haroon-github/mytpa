@@ -1,0 +1,34 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- include_tasks: list-packages.yml
+  vars:
+    list_varname: _all_patroni_packages
+
+- name: Check if we can install the desired Patroni packages
+  include_role:
+    name: pkg/install
+  vars:
+    package_list_name: "patroni packages"
+    package_list: "{{ _all_patroni_packages }}"
+    check_install_only: yes
+    result_varname: patroni_pkg_check
+
+- assert:
+    that: patroni_pkg_check is successful
+    fail_msg: >
+      Some packages are missing or the 'patroni_package_version' specified in 'config.yml' cannot be satisfied.
+
+- debug:
+    msg: "The desired 'patroni_package_version' or higher is already installed. Patroni upgrade tasks will be skipped on '{{ inventory_hostname }}'."
+  when: 
+  - patroni_pkg_check is successful
+  - patroni_pkg_check.changed is false
+
+- set_fact:
+    patroni_package_update: "{{
+      patroni_pkg_check is defined 
+      and patroni_pkg_check is successful 
+      and patroni_pkg_check.changed is true
+    }}"

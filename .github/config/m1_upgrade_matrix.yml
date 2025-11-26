@@ -41,19 +41,17 @@ all_pg_versions:
     - "efm"
     - "patroni"
   tpa_postgres_version:
-    - "12"
     - "13"
     - "14"
     - "15"
     - "16"
     - "17"
+    - "18"
   tpa_failover_manager:
     - "repmgr"
     - "efm"
     - "patroni"
   include:
-    - tpa_postgres_version: "12"
-      tpa_postgres_package_version: "12.8*"
     - tpa_postgres_version: "13"
       tpa_postgres_package_version: "13.4*"
     - tpa_postgres_version: "14"

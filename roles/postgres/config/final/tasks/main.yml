@@ -277,7 +277,7 @@
 - include_tasks:
     file: pgbouncer.yml
   when: >
-    "witness" not in role
+    ('witness' not in role and 'pem-server' not in role)
     and postgres_users|json_query("[?username=='%s']" % pgbouncer_auth_user) != []
     and task_selector|permits('pgbouncer')
 

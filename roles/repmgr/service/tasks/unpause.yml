@@ -1,0 +1,18 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Unpause repmgr
+  command: >
+    {{ postgres_bin_dir }}/repmgr service unpause -f {{ repmgr_conf_file }}
+  register: repmgr_unpaused
+  become_user: "{{ postgres_user }}"
+  become: yes
+  delay: "{{ delay|default(omit) }}"
+  
+
+- name: Fail if repmgr unpause failed
+  fail:
+    msg: "repmgrd could not be unpaused on one or more nodes."
+  when: 
+    repmgr_unpaused is not successful

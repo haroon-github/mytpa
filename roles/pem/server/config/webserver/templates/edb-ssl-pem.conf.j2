@@ -48,6 +48,13 @@
 
         CustomLog "/var/log/{{ pem_web_server_name[ansible_os_family] }}/ssl_request_log" \
             "%t %h %{SSL_PROTOCOL}x %{SSL_CIPHER}x \\\"%r\\\" %b"
+
+        # ReWrite rule for disable the request
+        <IfModule mod_rewrite.c>
+            RewriteEngine on
+            RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK|OPTIONS)
+            RewriteRule .* - [F]
+        </IfModule>
     </VirtualHost>
 
     # Only allow TLS v1.2 for security reasons

@@ -1,0 +1,39 @@
+---
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+#
+# This task gets the current state of etcd authentication, setting the fact
+# etcd_authentication_is_enabled accordingly.
+
+- name: Get state of etcd authentication
+  block:
+    - name: Check etcd authentication status
+      # We run an unauthenticated command. If auth is enabled, this will fail
+      # with a specific "user name is empty" error, which we can check for.
+      command:
+        cmd: "etcdctl user list {{ etcdctl_options_no_auth }}"
+      environment:
+        ETCDCTL_API: 3
+      register: auth_check_result
+      changed_when: false
+      # Avoid failing when rc != 0, as we rely on rc == 1 plus a message in stderr to
+      # detect that auth is already enabled.
+      failed_when: auth_check_result.rc not in [0, 1]
+
+    # We are primarily interested in the 'user name is empty' error, as it clearly
+    # indicates that basic authentication is enabled and we have not provided the
+    # expected credentials.
+    # However, under a special condition (when moving 'etcd_authentication_mode' from
+    # 'mtls' to 'basic' in TPA, and etcdctl happens to connect to an etcd node which has
+    # not been restarted yet), we might not see the expected error message, but
+    # 'user name not found' instead.
+    - name: Set fact for current authentication state
+      set_fact:
+        etcd_authentication_is_enabled: "{{
+            'etcdserver: user name is empty' in auth_check_result.stderr
+            or 'etcdserver: user name not found' in auth_check_result.stderr
+          }}"
+
+    # Refresh facts so etcdctl_options is properly set with the credentials, if any
+    - name: Refresh etcd facts
+      include_role:
+        name: etcd/facts

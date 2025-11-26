@@ -2,58 +2,173 @@
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
-- name: EFM cluster upgrade initial checks and setup
+# We must check that 'tpaexec upgrade' is not run on a cluster 
+# that uses shared PEM or share Barman 
+# ('pem_shared' or 'barman_shared' are 'true') in the 'config.yml'
+- name: Import upgrade precondition checks
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/upgrade_preconditions.yml"
+
+# It probably does not matter the order this runs (before or after 
+# common-component health-checks) but it is here to be consistent
+# with failover-manager specific checks running first.
+#
+# Because EFM installations are all separate packages and each
+# maintains it's own configuration files, we must ensure we are
+# ascertaining the status/health of the CURRENT EFM version, NOT
+# the target version for upgrade. Note all the 'vars' down below.
+# The user can define the 'current_efm_version', 'current_efm_bin_dir'
+# and 'current_efm_conf_dir' in their config.yml, as it may differ
+# from the default values. The 'current_efm_bin_dir' determines
+# which EFM executable is used to run commands, so ensuring it is
+# the correct one is especially important for this specific play.
+- name: Run EFM-specific health checks before upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: all
+  hosts: role_efm
   tasks:
+  - name: Run EFM checks
+    when: fo_manager == "efm"
+    block: 
+    - name: Check if EFM is currently installed
+      include_role:
+        name: efm/pkg
+        tasks_from: check-installed.yml
 
-  - name: Configure local-repo, if available
-    include_role:
-      name: sys/local_repo
+    - name: Check EFM health
+      include_role:
+        name: test
+        tasks_from: efm/basic.yml
+      vars:
+        efm_bin_dir: "{{ current_efm_bin_dir | default(_efm_bin_dir) }}"
+    vars:
+      # The check-installed task invoked above ensures the installed_efm_versions list is non-empty
+      # and contains only a single installed version, so we can safely use the 'first' filter. 
+      _efm_version: "{{ current_efm_version | default(installed_efm_versions | first) }}"
+      _efm_bin_dir: "/usr/edb/efm-{{ _efm_version }}/bin"
+      _efm_conf_dir: "/etc/edb/efm-{{ _efm_version }}"
 
-  - name: Set up repositories
-    include_role:
-      name: sys/repositories
+# Ascertain the status/health of PgBouncer, pg-backup-api and Barman BEFORE upgrade
+# If any fail, the upgrade playbook will bail out.
+# NOTE: The Barman WAL-receiver is stopped after this play is run,
+# as we do not want new backup jobs to start mid-upgrade.
+- name: Import pre-upgrade common-component health-checks
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/pre_upgrade_checks.yml"
 
-  # Pre upgrade checks
-  - name: Pre upgrade basic efm tests
-    include_role:
-      name: test
-      tasks_from: efm/basic.yml
-  # Ensure we use the correct failover_manager
-  - assert:
-      that:
-        failover_manager == 'efm'
-      fail_msg:
-        This upgrade scenario is for M1 Architecture clusters using EFM as failover manager.
-  # Ensure that cluster is in a working state
+# Ensure repositories are up-to-date before checking against component
+# software versions that can be installed.
+- name: Import repository update
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/repository_update.yml"
 
-  # use correct identifier for efm commands (not needed on witness nodes)
-  - name: Ensure efm_bind_by_hostname is handled
-    set_fact:
-      efm_identity: "{{ efm_bind_by_hostname|default(false)|ternary(inventory_hostname,ip_address) }}"
+# Ensure any selected component software versions are not currently installed
+# or are not able to be resolved (determined by the package manager in 'dry-run' mode)
+- name: Check if all desired common-components are able to be upgraded
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/check_upgrade_components.yml"
+
+# As explained earlier, EFM installations are all separate packages
+# and each maintains it's own configuration files, we check to ensure 
+# the TARGET version ('efm_version' in the 'config.yml') is not
+# already installed ('target_efm_bin_dir') or configured ('target_efm_conf_dir').
+# Since part of the EFM upgrade involves copying configuration files from the
+# CURRENT EFM installation, we also ensure the SOURCE (old) EFM version
+# is installed ('current_efm_bin_dir', as 'efm upgrade' commands are executed from here) 
+# as well as configured ('current_efm_conf_dir' as 'efm upgrade' copies these configurations to the target).
+# If this is NOT the case, the upgrade will fail and bail out.
+# If instead the current_efm_version matches the target_efm_version and all the above exist,
+# the upgrade will continue and just not upgrade EFM (nothing to update, already installed and configured).
+- name: Check if EFM version can be upgraded
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_efm
+  tasks:
+  - when:
+    - upgrade_selector|strict_selects('efm') or upgrade_selector|strict_selects('all')
+    - efm_version is defined
+    vars:
+      # The check-installed task invoked on EFM nodes in the previous play ensures the 
+      # installed_efm_versions list is non-empty and contains only a single installed version, 
+      # so we can safely use the 'first' filter. 
+      _efm_version: "{{ current_efm_version | default(installed_efm_versions | first) }}"
+      _efm_bin_dir: "/usr/edb/efm-{{ _efm_version }}/bin"
+      _efm_conf_dir: "/etc/edb/efm-{{ _efm_version }}"
+    block:
+    - name: Check if EFM can be updated to specified version  
+      include_role:
+        name: efm/pkg
+        tasks_from: check-update.yml
+
+    - name: "Check if existing EFM version {{ target_efm_version }} has binary and configuration directories"
+      include_role:
+        name: test
+        tasks_from: efm/check-bin-and-conf
+      vars:
+        fail_if_not_found: true
+        target_efm_version: "{{ _efm_version }}"
+        target_efm_bin_dir: "{{ current_efm_bin_dir | default(_efm_bin_dir) }}"
+        target_efm_conf_dir: "{{ current_efm_conf_dir | default(_efm_conf_dir) }}"
+
+    - name: "Check if upgrade target EFM version {{ target_efm_version }} already has binary and configuration directories"
+      include_role:
+        name: test
+        tasks_from: efm/check-bin-and-conf
+      vars:
+        fail_if_not_found: false
+        target_efm_version: "{{ efm_version }}"
+        target_efm_bin_dir: "{{ efm_bin_dir | default(_efm_bin_dir) }}"
+        target_efm_conf_dir: "{{ efm_conf_dir | default(_efm_conf_dir) }}"
+
+    - set_fact:
+        can_upgrade_efm: "{{ efm_package_update | default(true) }}"
+
+- name: Stop EFM cluster management before upgrade
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: g_chosen_primary
+  tasks:
+  - name: "Stop EFM {{ from_version }} for cluster {{ cluster_name }}"
+    command: "{{ target_efm_bin_dir }}/efm stop-cluster {{ cluster_name }}"
+    delegate_to: "{{ chosen_primary }}"
+    run_once: true
     when:
-      role|intersect(['primary','replica'])
+    - upgrade_selector|strict_selects('efm') or upgrade_selector|strict_selects('all')
+    - can_upgrade_efm
+    vars:
+      target_efm_bin_dir: "{{ current_efm_bin_dir | default(_efm_bin_dir) }}"
+      _efm_bin_dir: "/usr/edb/efm-{{ from_version }}/bin"
+      from_version: "{{ current_efm_version | default(installed_efm_versions | first) }}"
+      to_version: "{{ efm_version }}"
 
-- name: Run checks on barman nodes, if any
+# We do not run this play on the intersection of g_update_hosts, as we do not
+# want to "mix" EFM versions running in a cluster by only upgrading a subset
+# of data nodes. This is because each EFM version maintains it's own binaries
+# and configurations and we cannot guarantee disparate versions running across 
+# data nodes will operate together. EFM upgrade is an all-or-nothing operation.
+- name: Upgrade EFM
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_barman
+  hosts: role_efm
+  serial: 1
   tasks:
-  - name: Stop wal receiver on barman nodes
-    include_role:
-      name: barman
-      tasks_from: server-stop-receive-wal.yml
+  - include_role: name=efm/update
+    when:
+    - upgrade_selector|strict_selects('efm') or upgrade_selector|strict_selects('all')
+    - can_upgrade_efm
+    vars:
+      from_version: "{{ current_efm_version | default(installed_efm_versions | first) }}"
+      to_version: "{{ efm_version }}"
 
-# Start upgrade process
-
+# Start Postgres upgrade process
 # Upgrade replicas first
 - name: Upgrade postgres on replicas
   any_errors_fatal: true
@@ -64,22 +179,24 @@
   serial: 1
   hosts: role_replica:&g_update_hosts
   tasks:
-
-  - name: Stop EFM agent
-    service:
-      name: edb-efm-{{ efm_version }}
-      state: stopped
-
+  - when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
+    block:
+    - name: Stop EFM agent
+      service:
+        name: edb-efm-{{ efm_version }}
+        state: stopped
+      when: "'efm' in role"
     # upgrade the database
-  - include_role: name=postgres/update
-
-  - include_role: name=postgres/restart
-
+    - include_role: name=postgres/update
+    - include_role: name=postgres/restart
     # start the agent
-  - name: Start EFM agent
-    service:
-      name: edb-efm-{{ efm_version }}
-      state: started
+    - name: Start EFM agent
+      service:
+        name: edb-efm-{{ efm_version }}
+        state: started
+      when: "'efm' in role"
 
 - name: Switchover to chosen_replica if needed
   any_errors_fatal: true
@@ -91,8 +208,6 @@
   handlers:
   - import_tasks: "{{ tpa_dir }}/roles/efm/handlers/main.yml"
   tasks:
-
-
   - name: Switchover from {{ chosen_primary }} to {{ chosen_replica }}
     include_role:
       name: efm/switchover
@@ -112,21 +227,24 @@
   environment: "{{ target_environment }}"
   hosts: g_chosen_primary:&g_update_hosts
   tasks:
-
-  - name: Stop EFM agent
-    service:
-      name: edb-efm-{{ efm_version }}
-      state: stopped
-
-  - include_role: name=postgres/update
-
-  - include_role: name=postgres/restart
-
-  # start the agent
-  - name: Start EFM agent
-    service:
-      name: edb-efm-{{ efm_version }}
-      state: started
+  - when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
+    block:
+    - name: Stop EFM agent
+      service:
+        name: edb-efm-{{ efm_version }}
+        state: stopped
+      when: "'efm' in role"
+    # upgrade the database
+    - include_role: name=postgres/update
+    - include_role: name=postgres/restart
+    # start the agent
+    - name: Start EFM agent
+      service:
+        name: edb-efm-{{ efm_version }}
+        state: started
+      when: "'efm' in role"
 
 - name: Switchover to chosen_primary if needed
   any_errors_fatal: true
@@ -138,7 +256,6 @@
   handlers:
   - import_tasks: "{{ tpa_dir }}/roles/efm/handlers/main.yml"
   tasks:
-
   - name: Switchover from {{ chosen_replica }} to {{ chosen_primary }}
     include_role:
       name: efm/switchover
@@ -149,36 +266,33 @@
     when:
       chosen_primary in groups['g_update_hosts']
 
-- name: Start receiving wals on barman nodes
+# This will update PgBouncer, pg-backup-api, Barman, PEM server and PEM agent 
+# if they are selected components and their packages are able to be upgraded. 
+# Otherwise, their respective upgrade plays are skipped.
+- name: Update all desired common cluster components that are able to be upgraded
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/components_upgrade.yml"
+
+# Ascertain the status/health of PgBouncer, pg-backup-api and Barman AFTER upgrade
+# If any fail, the upgrade playbook will bail out.
+# NOTE: The Barman WAL-receiver is started after this play is run,
+# since we stopped it as part of the pre-upgrade checks. It may have already
+# been started if Barman was upgraded (which makes the service start here a no-op)
+- name: Import post-upgrade health-checks for common components in the cluster
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/post_upgrade_checks.yml"
+
+- name: Run EFM-specific health checks after upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_barman
-  tasks:
-  - name: Install /etc/tpa/barman-home-ok
-    include_role:
-      name: barman
-      tasks_from: server-install-barman-home-ok.yml
-
-  - name: Start wal receiver on barman nodes
-    command: "barman cron"
-
-- name: Post upgrade checks
-  any_errors_fatal: true
-  max_fail_percentage: 0
-  become_user: root
-  become: yes
-  environment: "{{ target_environment }}"
-  hosts: all
+  hosts: role_efm
   tasks:
   - name: Wait for cluster to recover
     wait_for:
       timeout: 30
-
-  # post checks
-  - name: Post upgrade basic efm tests
+  - name: Check EFM health
     include_role:
       name: test
       tasks_from: efm/basic.yml
+    when: fo_manager == "efm"

@@ -9,14 +9,6 @@
     ansible_os_family == "Debian"
     and not use_local_repo_only
 
-- name: Include pre-deploy hook
-  include_tasks: "{{ hook }}"
-  when: >
-    lookup('first_found', dict(files=hook, skip=True))
-    and task_selector|selects('pre-deploy')
-  vars:
-    hook: "{{ cluster_dir }}/hooks/pre-deploy.yml"
-
 - include_tasks: repositories.yml
   when:
     not use_local_repo_only

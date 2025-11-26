@@ -1,0 +1,42 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Check if binary directory exists
+  stat:
+    path: "{{ target_efm_bin_dir | default(_efm_bin_dir) }}"
+    get_checksum: false
+    get_mime: false
+  register: existing_efm_binary
+  vars:
+    _efm_bin_dir: "/usr/edb/efm-{{ target_efm_version }}/bin"
+
+- name: Check if configuration directory exists
+  stat:
+    path: "{{ target_efm_conf_dir | default(_efm_conf_dir) }}"
+    get_checksum: false
+    get_mime: false
+  register: existing_efm_configuration
+  vars:
+    _efm_conf_dir: "/etc/edb/efm-{{ target_efm_version }}"
+
+- name: Ensure information can be gathered on these directories
+  fail:
+    msg: Failed to gather any information about these directories
+  when: existing_efm_binary is not successful or existing_efm_configuration is not successful
+
+- name: "Check state of EFM binary and configuration directories"
+  vars:
+    fail_if_not_found: "{{ fail_if_found | default(true) | bool }}"
+  block:
+  - name: "Ensure EFM {{ target_efm_version }} configuration directory {{ fail_if_not_found|ternary('exists', 'does not already exist') }}"
+    fail: 
+      msg: "{{ fail_if_not_found|ternary('Failed to find', 'Already found')}} a configuration directory for EFM {{ target_efm_version }}"
+    when: existing_efm_configuration.stat.exists != fail_if_not_found
+
+        
+  - name: "Ensure EFM {{ target_efm_version }} binary directory {{ fail_if_not_found|ternary('exists', 'does not already exist') }}"
+    fail: 
+      msg: "{{ fail_if_not_found|ternary('Failed to find', 'Already found')}} a binary directory for EFM {{ target_efm_version }}"
+    when: existing_efm_configuration.stat.exists != fail_if_not_found
+

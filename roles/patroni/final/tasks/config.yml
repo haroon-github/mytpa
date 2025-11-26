@@ -2,7 +2,28 @@
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
-- name: Create patroni configuration
+- name: Read existing Patroni configuration file (if it exists)
+  slurp:
+    src: "{{ patroni_etc }}/{{ cluster_name }}.yml"
+  register: existing_patroni_file
+  ignore_errors: true
+
+- name: Set old_config fact from existing file content
+  set_fact:
+    _old_patroni_conf: >-
+      {{
+        (existing_patroni_file.content | b64decode | from_yaml)
+        if existing_patroni_file.content is defined
+        else {}
+      }}
+
+- name: Compare old and new Patroni configurations to determine required action
+  patroni_compare_config:
+    old_config: "{{ _old_patroni_conf }}"
+    new_config: "{{ patroni_conf }}"
+  register: patroni_config_diff
+
+- name: Create or update Patroni configuration file
   copy:
     content: "{{
       patroni_conf
@@ -13,11 +34,18 @@
     group: "{{ postgres_group }}"
     mode: "0640"
 
-  # This can be enabled when PAT-106 is resolved
-  #   validate: "{{ patroni_path }} --validate-config %s"
-  # environment:
-  #   LANG: "{{ user_locale }}"
-  #   LC_ALL: "{{ user_locale }}"
-
+- name: Request Patroni configuration reload if required
+  when: patroni_config_diff.action == 'reload'
+  debug:
+    msg: "Configuration changed, reload will be triggered by handler."
+  changed_when: true
   notify:
     Note patroni config reload required
+
+- name: Request Patroni restart if required
+  when: patroni_config_diff.action == 'restart'
+  debug:
+    msg: "Configuration changed, restart will be triggered by handler."
+  changed_when: true
+  notify:
+    Note patroni restart required

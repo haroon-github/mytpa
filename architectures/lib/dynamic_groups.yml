@@ -19,13 +19,39 @@
       loop_var: member
     changed_when: false
 
+  - name: Create a list of data nodes backed up by Barman servers
+    set_fact:
+      barman_backed_nodes: "{{ barman_backed_nodes|default([])|union([hostvars[member]['backup_name']])|unique|list }}"
+    loop: "{{ groups['all'] | difference(groups['role_barman']|default([])) }}"
+    loop_control:
+      loop_var: member
+    when:
+    - "'barman' in role"
+    - "'backup' in hostvars[member]"
+    - "'backup_name' in hostvars[member]"
+    - hostvars[member]["backup"] == inventory_hostname or inventory_hostname in hostvars[member]["backup"]
+
+  - name: Turn upgrade_components into a list if required
+    set_fact:
+      upgrade_components_list: "{{ upgrade_components|default('postgres')|replace(',', ' ')|split }}"
+    when: upgrade_components|default('postgres') is string
+  
+  - name: Set up selectors for upgrade
+    set_fact:
+      upgrade_selector:
+        include: "{{ upgrade_components_list|default(upgrade_components) }}"
+        exclude: []
+    
   - name: M1 only dynamic groups
     when:
       groups['role_bdr']|default([]) is empty
     block:
-    - name: Identify primary by name
+    - name: Identify primary by name and set it's backup_name
       set_fact:
-        chosen_primary: "{{ groups['primary'] | difference(groups['role_pem-server']|default([])) | first }}"
+        chosen_primary: "{{ _chosen_primary }}"
+        chosen_primary_backup_name: "{{ hostvars[_chosen_primary]['backup_name'] }}"
+      vars:
+        _chosen_primary: "{{ groups['primary'] | difference(groups['role_pem-server']|default([])) | first }}"
 
     - name: Identify replica to become temporary primary
       set_fact:

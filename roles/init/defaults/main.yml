@@ -99,27 +99,31 @@ supported_postgis_versions:
   - '3.3'
   - '3.4'
   - '3.5'
+  - '3.6'
 
-default_postgis_version: "{{ supported_postgis_versions | last }}"
+default_postgis_version: "{{ postgres_version is version('18','>=') | ternary('3.6', '3.5') }}"
 postgis_version_maj_min: "{{ default_postgis_version | split('.') }}"
 
+# This lookup table is a straightforward workaround for the package naming
+# convention change that occured for the version number in the pgaudit package name
+# for both the PGDG repos and EDB repos. Once Postgres version 15 is no longer
+# supported by TPA, this workaround should no longer be necessary (assuming the naming
+# convention for the packages remains consistent.)
 pgdg_pgaudit_version:
-  "11": "14"
-  "12": "14"
   "13": "15"
   "14": "16"
   "15": "17"
   "16": ""
   "17": ""
+  "18": ""
 
 edb_pgaudit_version:
-  "11": "1"
-  "12": "1"
   "13": "1"
   "14": "1"
   "15": "1"
   "16": "16"
   "17": "17"
+  "18": "18"
 
 # The EDB repos changed the naming convention for pgaudit packages
 # for version 16 and beyond. The PGDG repos remain consistent in
@@ -460,9 +464,6 @@ default_max_worker_processes: 16
 default_password_encryption:
   "{{ postgres_version is version('10','>=')
       |ternary('scram-sha-256', 'md5') }}"
-default_efm_user_password_encryption:
-  "{{ (compliance|default('') == 'stig')
-      |ternary('scram-sha-256', 'md5') }}"
 default_postgres_hba_local_auth_method: peer
 
 default_barman_user: barman
@@ -475,6 +476,15 @@ default_failover_manager:
   postgresql: repmgr
   edbpge: repmgr
 
+default_etcd_ssl_enabled: false
+# Defines the authentication mode for etcd.
+# - none: (Default) No client authentication is performed.
+# - basic: Clients must provide a valid username and password. Requires
+#          `etcd_ssl_enabled: true`.
+# - mtls: Mutual TLS authentication is required. Requires
+#          `etcd_ssl_enabled: true`.
+default_etcd_authentication_mode: none
+# When basic auth is enabled, we need a root user.
 default_etcd_peer_port: 2380
 default_etcd_client_port: 2379
 default_etcd_compaction_mode: revision
@@ -544,8 +554,16 @@ default_harp_http_options:
   probes:
     timeout: 10s
 
+default_patroni_dcs_namespace: '/tpa'
 default_patroni_listen_port: 8008
 default_patroni_ssl_enabled: false
+# Defines the authentication mode for Patroni REST API.
+# - basic: Clients must provide a valid username and password. Requires
+#          `patroni_ssl_enabled: true`.
+# - mtls: Mutual TLS authentication is required. Requires
+#          `patroni_ssl_enabled: true`.
+default_patroni_authentication_mode: basic
+default_patroni_etcd_user: etcd_patroni
 
 default_build_path:
   - "{{ postgres_bin_dir }}"
@@ -553,17 +571,20 @@ default_build_path:
   - /usr/lib/ccache
   - $PATH
 
-default_efm_version: "{{ (ansible_distribution == 'Ubuntu' and ansible_distribution_major_version|int == 24)|ternary(5.0, 4.9) }}"
-
-default_efm_conf_dir: "/etc/edb/efm-{{ efm_version }}"
 default_efm_bin_dir: "/usr/edb/efm-{{ efm_version }}/bin"
 default_efm_bind_port: 7800
+default_efm_conf_dir: "/etc/edb/efm-{{ efm_version }}"
+default_efm_user_password_encryption:
+  "{{ (compliance|default('') == 'stig')
+      |ternary('scram-sha-256', 'md5') }}"
+default_efm_version: "{{ (ansible_distribution == 'Ubuntu' and ansible_distribution_major_version|int == 24)|ternary(5.0, 4.9) }}"
 
 default_pem_base_dir: /usr/edb/pem
 default_pem_agent_base_dir: /usr/edb/pem/agent
 default_pem_agent_service_name: pemagent
 default_pem_database: pem
 default_pem_server_group: "PEM Server Directory"
+default_pem_agent_group: "PEM Agents"
 
 default_pgd_proxy_home: /home/pgdproxy
 default_pgd_proxy_config_directory: /etc/edb/pgd-proxy
@@ -588,3 +609,4 @@ default_pem_db_ca_certificate_key_size: 4096
 default_ha_proxy_dhparams_key_size: 2048
 default_openvpn_rsa_key_size: 4096
 default_openvpn_dhparams_numbits_size: 2048
+default_openssl_certificate_validity: 3650

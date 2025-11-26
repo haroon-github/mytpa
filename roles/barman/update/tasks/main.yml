@@ -1,0 +1,35 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+- name: Include barman-pre-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/barman-pre-update.yml"
+
+- name: Stop wal receiver on barman nodes
+  include_role:
+    name: barman
+    tasks_from: server-stop-receive-wal.yml
+  loop: "{{ target_backups }}"
+  loop_control:
+    loop_var: target_backup_name
+
+- name: Upgrade Barman package
+  include_role: name=barman/pkg
+  vars:
+    allow_package_upgrades: yes
+
+- name: Start wal receiver on barman nodes
+  include_role:
+    name: barman
+    tasks_from: server-start-receive-wal.yml
+
+- name: Include barman-post-update hook
+  include_tasks: "{{ hook }}"
+  when:
+    lookup('first_found', dict(files=hook, skip=True))
+  vars:
+    hook: "{{ cluster_dir }}/hooks/barman-post-update.yml"

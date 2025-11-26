@@ -13,18 +13,11 @@
     etcd_service_end_state: "{{
         etcd_service_end_state|default('started')
       }}"
-    etcd_endpoints: "{{
-        groups['role_etcd']
-        |select_by_hostvar(hostvars, 'etcd_location', etcd_location)
-        |map('pyformat_hostvars', '{inventory_hostname}:{etcd_client_port}', hostvars)
-        |list
-        |join(',')
-      }}"
 
 - name: Check etcd cluster health before restart
   block:
   - command:
-      etcdctl endpoint health --endpoints="{{ etcd_endpoints }}"
+      etcdctl endpoint health {{ etcdctl_options }}
     environment:
       ETCDCTL_API: 3
     register: etcd_health_check
@@ -47,7 +40,7 @@
 
 - name: Wait until etcd cluster is healthy after restart
   command:
-    etcdctl endpoint health --endpoints="{{ etcd_endpoints }}"
+    etcdctl endpoint health {{ etcdctl_options }}
   environment:
     ETCDCTL_API: 3
   register: etcd_post_check

@@ -2,38 +2,49 @@
 
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
-- name: Initial checks and setup
+# We must check that 'tpaexec upgrade' is not run on a cluster 
+# that uses shared PEM or share Barman 
+# ('pem_shared' or 'barman_shared' are 'true') in the 'config.yml'
+- name: Import upgrade precondition checks
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/upgrade_preconditions.yml"
+
+# It probably does not matter the order this runs (before or after 
+# common-component health-checks) but it is here to be consistent
+# with failover-manager specific checks running first.
+#
+# We first hit the Patroni API endpoints to check it is okay
+# which runs only on the chosen_primary. We also loop over 
+# every etcd node in the cluster to check their health and
+# check that all Patroni-managed data nodes have a consistent
+# view with TPA itself.
+- name: Run Patroni-specific health checks before upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
   hosts: all
-  tasks:
+  tasks: 
+  - name: Run Patroni checks
+    when:
+    - inventory_hostname == chosen_primary
+    - fo_manager == "patroni"
+    block:
+      - include_role:
+          name: test
+          tasks_from: patroni/basic.yml
+      - include_role:
+          name: test
+          tasks_from: patroni/pending-restart.yml
 
-
-  - name: Configure local-repo, if available
+  - name: Run etcd checks
     include_role:
-      name: sys/local_repo
-
-  - name: Set up repositories
-    include_role:
-      name: sys/repositories
-
-  - assert:
-      that:
-        failover_manager == 'patroni'
-      fail_msg:
-        This upgrade scenario is for patroni only
-
-- name: Patroni checks
-  any_errors_fatal: true
-  max_fail_percentage: 0
-  become_user: root
-  become: yes
-  environment: "{{ target_environment }}"
-  hosts: role_replica:role_primary
-  tasks:
+      name: test
+      tasks_from: etcd/check-health.yml
+    loop: "{{ groups['role_etcd'] }}"
+    when:
+    - inventory_hostname == item
+    - fo_manager == "patroni"
 
   - name: Check that Patroni's view of the cluster matches TPA's
     assert:
@@ -47,21 +58,69 @@
         |selectattr('Member', 'equalto', chosen_replica)|list
         |selectattr('Role', 'equalto', 'Replica')|list
         |length == 1
+    when: >
+      'replica' in role or 'primary' in role
 
-- name: Run checks on barman nodes, if any
+# Ascertain the status/health of PgBouncer, pg-backup-api and Barman BEFORE upgrade
+# If any fail, the upgrade playbook will bail out.
+# NOTE: The Barman WAL-receiver is stopped after this play is run,
+# as we do not want new backup jobs to start mid-upgrade.
+- name: Import pre-upgrade common-component health-checks
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/pre_upgrade_checks.yml"
+
+# Ensure repositories are up-to-date before checking against component
+# software versions that can be installed.
+- name: Import repository update
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/repository_update.yml"
+
+# Ensure any selected component software versions are not currently installed
+# or are not able to be resolved (determined by the package manager in 'dry-run' mode)
+- name: Check if all desired common-components are able to be upgraded
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/check_upgrade_components.yml"
+
+- name: Check if Patroni version can be upgraded
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_barman
+  hosts: role_postgres:&g_update_hosts:!role_pem-server
   tasks:
-  - name: Stop wal receiver on barman nodes
-    include_role:
-      name: barman
-      tasks_from: server-stop-receive-wal.yml
+  - when:
+    - upgrade_selector|strict_selects('patroni') or upgrade_selector|strict_selects('all')
+    - fo_manager == "patroni"
+    block:
+    - name: Check if Patroni can be updated to specified package version  
+      include_role:
+        name: patroni/pkg
+        tasks_from: check-update.yml
+      when: patroni_package_version is defined
 
-- name: Pause patroni cluster management
+    - set_fact:
+        can_upgrade_patroni: "{{ patroni_package_update | default(true) }}"
+
+- name: Check if etcd version can be upgraded
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_etcd:&g_update_hosts
+  tasks:
+  - when:
+    - upgrade_selector|strict_selects('etcd') or upgrade_selector|strict_selects('all')
+    - fo_manager == "patroni"
+    block:
+    - name: Check if etcd can be updated to specified package version  
+      include_role:
+        name: etcd/pkg
+        tasks_from: check-update.yml
+      when: etcd_package_version is defined
+
+    - set_fact:
+        can_upgrade_etcd: "{{ etcd_package_update | default(true) }}"
+
+- name: Put Patroni cluster into maintenance mode before upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
@@ -69,18 +128,19 @@
   environment: "{{ target_environment }}"
   hosts: g_chosen_primary
   tasks:
+  - when: fo_manager == "patroni"
+    block:
+    - name: Pause cluster management
+      include_role:
+        name: patroni/api
+        tasks_from: config
+      vars:
+        body:
+          pause: true
 
-  - name: Pause cluster management
-    include_role:
-      name: patroni/api
-      tasks_from: config
-    vars:
-      body:
-        pause: true
-
-  - name: Check cluster is paused
-    assert:
-      that: patroni_config_api_output.json.pause|default(false)
+    - name: Check Patroni management is paused for the cluster
+      assert:
+        that: patroni_config_api_output.json.pause|default(false)
 
 - name: Update Postgres on replicas
   any_errors_fatal: true
@@ -91,13 +151,18 @@
   environment: "{{ target_environment }}"
   hosts: role_replica:&g_update_hosts
   tasks:
-
-  - name: Update postgres on replica {{ inventory_hostname }}
-    include_role:
-      name: postgres/update
-  - name: Restart postgres on {{ inventory_hostname }} if necessary
-    include_role:
-      name: postgres/restart
+  - name: "Upgrade Postgres on {{ inventory_hostname }}"
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
+    block:
+    - include_role: name=postgres/update
+    - name: Issue a postgresql restart if required
+      include_role:
+        name: patroni/service
+        tasks_from: postgres_restart.yml
+      vars:
+        postgres_service_end_state: restarted
 
 # if the switchover fails, the upgrade process will stop
 
@@ -118,6 +183,9 @@
       body:
         leader: "{{ chosen_primary }}"
         candidate: "{{ chosen_replica }}"
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
 
 - name: Upgrade postgres on chosen_primary
   any_errors_fatal: true
@@ -127,14 +195,18 @@
   environment: "{{ target_environment }}"
   hosts: g_chosen_primary:&g_update_hosts
   tasks:
-
-  - name: Update postgres on original primary {{ inventory_hostname }}
-    include_role:
-      name: postgres/update
-
-  - name: Restart postgres on {{ inventory_hostname }} if necessary
-    include_role:
-      name: postgres/restart
+  - name: "Upgrade Postgres on {{ inventory_hostname }}"
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
+    block:
+    - include_role: name=postgres/update
+    - name: Issue a postgresql restart if required
+      include_role:
+        name: patroni/service
+        tasks_from: postgres_restart.yml
+      vars:
+        postgres_service_end_state: restarted
 
 - name: Switchover back to chosen_primary
   any_errors_fatal: true
@@ -153,6 +225,45 @@
       body:
         leader: "{{ chosen_replica }}"
         candidate: "{{ chosen_primary }}"
+    when:
+    - upgrade_selector|strict_selects('postgres') or upgrade_selector|strict_selects('all')
+    - can_upgrade_postgres
+
+- name: Upgrade etcd
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_etcd:&g_update_hosts
+  serial: 1
+  tasks:
+  - include_role: name=etcd/update
+    when: 
+    - upgrade_selector|strict_selects('etcd') or upgrade_selector|strict_selects('all')
+    - fo_manager == "patroni"
+    - can_upgrade_etcd
+    
+- name: Upgrade Patroni
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  become_user: root
+  become: yes
+  environment: "{{ target_environment }}"
+  hosts: role_postgres:&g_update_hosts
+  serial: 1
+  tasks:
+  - include_role: name=patroni/update
+    when: 
+    - upgrade_selector|strict_selects('patroni') or upgrade_selector|strict_selects('all')
+    - fo_manager == "patroni"
+    - can_upgrade_patroni
+
+# This will update PgBouncer, pg-backup-api, Barman, PEM server and PEM agent 
+# if they are selected components and their packages are able to be upgraded. 
+# Otherwise, their respective upgrade plays are skipped.
+- name: Update all desired common cluster components that are able to be upgraded
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/components_upgrade.yml"
 
 - name: Resume patroni management
   any_errors_fatal: true
@@ -162,7 +273,6 @@
   environment: "{{ target_environment }}"
   hosts: g_chosen_primary
   tasks:
-
   - name: Resume cluster management
     include_role:
       name: patroni/api
@@ -175,15 +285,34 @@
     assert:
       that: not patroni_config_api_output.json.pause
 
-- name: Start receiving wals on barman nodes
+# Ascertain the status/health of PgBouncer, pg-backup-api and Barman AFTER upgrade
+# If any fail, the upgrade playbook will bail out.
+# NOTE: The Barman WAL-receiver is started after this play is run,
+# since we stopped it as part of the pre-upgrade checks. It may have already
+# been started if Barman was upgraded (which makes the service start here a no-op)
+- name: Import post-upgrade health-checks for common components in the cluster
+  import_playbook: "{{ tpa_dir }}/architectures/common/playbooks/post_upgrade_checks.yml"
+
+- name: Run Patroni-specific health checks after upgrade
   any_errors_fatal: true
   max_fail_percentage: 0
   become_user: root
   become: yes
   environment: "{{ target_environment }}"
-  hosts: role_barman
-  tasks:
-  - name: Starting barman tasks
+  hosts: all
+  tasks: 
+  - name: Run Patroni checks
     include_role:
-      name: barman
-      tasks_from: server-start-receive-wal.yml
+      name: test
+      tasks_from: patroni/basic.yml
+    when: 
+    - inventory_hostname == chosen_primary
+    - fo_manager == "patroni"
+
+  - name: Run etcd checks
+    include_role:
+      name: test
+      tasks_from: etcd/check-health.yml
+    loop: "{{ groups['role_etcd'] }}"
+    when:
+    - inventory_hostname == item

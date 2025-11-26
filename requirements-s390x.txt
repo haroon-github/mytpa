@@ -4,24 +4,24 @@ cffi==2.0.0 \
     # via
     #   -r /out/requirements-s390x.in
     #   cryptography
-cryptography==45.0.7 \
-    --hash=sha256:18d04a5c9f30e713e5495e30aa034d6714435edce4b4cacb6891f7a34aadc73d \
-    --hash=sha256:dfa444154f9a9fde3b96064e9bccdc90c5bca688e3d20a2d62dc35a52052e155
+cryptography==46.0.3 \
+    --hash=sha256:16558bafdc41633eb9d50fb066d387305206dc8b3a45988472d1eaf6f0a33614 \
+    --hash=sha256:c0a7bb1a68a5d3471880e264621346c48665b3bf1c3759d682fc0864c540bd9e
     # via -r /out/requirements-s390x.in
-markupsafe==3.0.2 \
-    --hash=sha256:3e22c35dcdbb8c898a409aabb03ea08dda7937bb33f94741701271ba3337227b \
-    --hash=sha256:86d21f7f1e5863a0fec0fca24f3629e34c3d4134d782bdd0a3cbcfa40d3a2544
+markupsafe==3.0.3 \
+    --hash=sha256:2a8bcea224a7a20b839f3a792ef54a8378a807453b10004389c58ce2aa111da0 \
+    --hash=sha256:c8902784d302c1a441f17f8b61d1487f3cd5ed3dd25053f985b84ee48cf577c5
     # via -r /out/requirements-s390x.in
-psutil==7.0.0 \
-    --hash=sha256:95b9b87ee0cbef22ba1096fcf0d82cf33173ea475d8734a0f17c1173d13ffeb8 \
-    --hash=sha256:9aee2a6dfabc9259a46008072b8b8e70b3d801d3e3e90d6da6cd723e62be2821
+psutil==7.1.3 \
+    --hash=sha256:b4179bf3b0445808427bca969c39ba94c8b67b867107da8b9fb442f1f81e2a65 \
+    --hash=sha256:f55d5f5904fe0a37ca91837cf725d647fe493d3cce1177b2e1a0faf621140ab9
     # via -r /out/requirements-s390x.in
 pycparser==2.23 \
     --hash=sha256:e5c6e8d3fbad53479cab09ac03729e0a9faf2bee3db8208a550daf5af81a5934
     # via
     #   -r /out/requirements-s390x.in
     #   cffi
-pyyaml==6.0.2 \
-    --hash=sha256:9b22676e8097e9e22e36d6b7bda33190d0d400f345f23d4065d48f4ca7ae0425 \
-    --hash=sha256:ed3e08145aa409d1fd3fb8e28e897cf51614196a1bd52a77b1e858cef7b609e9
+pyyaml==6.0.3 \
+    --hash=sha256:0571db2658325adbd2a450c80d11b4ac71d9923384162676c3ecc8ddcf23f8d1 \
+    --hash=sha256:5fdec68f91a0c6739b380c83b951e2c72ac0197ace422360e6d5a959d8d97b2c
     # via -r /out/requirements-s390x.in

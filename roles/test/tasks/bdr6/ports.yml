@@ -1,0 +1,51 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+# connect to the configured dsns for postgres itself and Connection Manager
+
+- name: connect to postgres dsn
+  postgresql_query:
+    conninfo: "{{ postgres_dsn|dbname(bdr_database, user=postgres_user, host='127.0.0.1') }}"
+    query: >
+      SELECT ssl
+      FROM pg_stat_activity sa JOIN pg_stat_ssl ss USING (pid)
+      WHERE pid = pg_backend_pid()
+  vars:
+    _task_environment:
+      PGPASSWORD: "{{ vars['%s_password' % postgres_user] }}"
+  environment: "{{ target_environment|combine(_task_environment) }}"
+
+# cm default ports are in node group options if set; else they are
+# postgres_port + 1000 and postgres_port + 1001
+
+- name: determine ports for Connection Manager
+  set_fact:
+    read_write_port: "{{ top_group[options][read_write_port]|default(postgres_port|int + 1000) }}"
+    read_only_port: "{{ top_group[options][read_only_port]|default(postgres_port|int + 1001) }}"
+  vars:
+    top_group: bdr_node_groups|select(name, '==', cluster_name)
+
+- name: connect to Connection Manager read-only dsn
+  postgresql_query:
+    conninfo: "{{ postgres_dsn|dbname(bdr_database, user=postgres_user, port=read_only_port, host='127.0.0.1') }}"
+    query: >
+      SELECT ssl
+      FROM pg_stat_activity sa JOIN pg_stat_ssl ss USING (pid)
+      WHERE pid = pg_backend_pid()
+  vars:
+    _task_environment:
+      PGPASSWORD: "{{ vars['%s_password' % postgres_user] }}"
+  environment: "{{ target_environment|combine(_task_environment) }}"
+
+- name: connect to Connection Manager read-write dsn
+  postgresql_query:
+    conninfo: "{{ postgres_dsn|dbname(bdr_database, user=postgres_user, port=read_write_port, host='127.0.0.1') }}"
+    query: >
+      SELECT ssl
+      FROM pg_stat_activity sa JOIN pg_stat_ssl ss USING (pid)
+      WHERE pid = pg_backend_pid()
+  vars:
+    _task_environment:
+      PGPASSWORD: "{{ vars['%s_password' % postgres_user] }}"
+  environment: "{{ target_environment|combine(_task_environment) }}"

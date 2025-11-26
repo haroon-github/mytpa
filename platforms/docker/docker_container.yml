@@ -1,5 +1,4 @@
 ---
-
 # © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
 
 # The docker_container module accepts an intimidating number of options
@@ -13,7 +12,6 @@
 #
 # https://docs.ansible.com/ansible/2.8/modules/docker_container_module.html
 
-
 # This is a list of images for which we can use cgroups2 scopes to mount
 # only part of the host's /sys/fs/cgroup into the container. We do this
 # if possible, so that the container can't interfere with the host's
@@ -24,13 +22,13 @@
 - name: Set list of images with support for cgroups2 scopes
   set_fact:
     scoped_support_images:
-    - "tpa/redhat:9"
-    - "tpa/almalinux:9"
-    - "tpa/rocky:9"
-    - "tpa/oraclelinux:9"
-    - "tpa/ubuntu:22.04"
-    - "tpa/ubuntu:jammy"
-    - "tpa/ubuntu:latest"
+      - "tpa/redhat:9"
+      - "tpa/almalinux:9"
+      - "tpa/rocky:9"
+      - "tpa/oraclelinux:9"
+      - "tpa/ubuntu:22.04"
+      - "tpa/ubuntu:jammy"
+      - "tpa/ubuntu:latest"
 
 - name: Check if /sys/fs/cgroup is mounted read-write
   shell:
@@ -60,7 +58,7 @@
     privileged: "{{ item.privileged|default('no') }}"
     capabilities: "{{ item.docker_cap_add|default(omit) }}"
     cap_drop: "{{ item.docker_cap_drop|default(omit) }}"
-    stop_signal: 'RTMIN+3'
+    stop_signal: "RTMIN+3"
     interactive: yes
     tty: yes
     restart_policy: "{{ item.restart_policy|default('unless-stopped') }}"
@@ -155,13 +153,13 @@
 
 - set_fact:
     docker_container_results: "{{
-        docker_container_results|default([])|union([
-          container_info.container|combine({
-            'item': item|combine({
-              'private_ip': n.IPAddress or n.Networks[docker_networks[0].name]['IPAddress']
-            })
-          })
-        ])
+      docker_container_results|default([])|union([
+      container_info.container|combine({
+      'item': item|combine({
+      'private_ip': (n.IPAddress | default(None)) or n.Networks[docker_networks[0].name]['IPAddress']
+      })
+      })
+      ])
       }}"
   vars:
     n: "{{ container_info.container.NetworkSettings }}"

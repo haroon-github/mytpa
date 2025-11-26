@@ -97,12 +97,17 @@
       --pem-user "{{ pem_postgres_user }}"                      \
       --config-dir "{{ pem_agent_config_path|dirname }}"        \
       --cert-path "{{ pem_agent_certificate_directory }}"       \
+      --group "{{ agent_group }}" \
+      {% if monitoring_agent_cluster is defined and 'pem-server' not in role %} 
+      --cluster-name "{{ monitoring_agent_cluster }}" \ 
+      {% endif %}
       {% for option in registration_options  %} {{ option }} {% endfor %}
   args:
     creates: "{{ pem_agent_config_path }}"
   environment: "{{ target_environment|combine(_task_environment) }}"
   vars:
     registration_options: "{{ pemagent_registration_opts | default([]) }}"
+    agent_group: "{{ pem_agent_group if 'pem-server' in role else (monitoring_agent_group | default(hostvars[pem_server].pem_agent_group)) }}"
     _task_environment:
       PEM_SERVER_PASSWORD: "{{ pem_postgres_password }}"
   register: register_cmd

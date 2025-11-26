@@ -9,6 +9,11 @@ description: |
   use .in file to regenerate the associated .txt files
   generates a PR targeting main branch with resulting changes
   to .txt files.
+inputs:
+  changelogs:
+    description: "Links to changelogs to be included in PR body"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -54,7 +59,7 @@ runs:
         #!/bin/bash
         FILES="requirements.txt"
 
-        ERRORS=$(python .github/actions/update-requirements/add_ppc64_hashes_to_requirements_files.py $FILES)
+        ERRORS=$(python .github/actions/update-requirements/add_arch_hashes_to_requirements_files.py $FILES)
         echo "ERRORS<<EOF" >> $GITHUB_OUTPUT
         echo "$ERRORS" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
@@ -89,6 +94,7 @@ runs:
           pr_number: ${{ github.event.pull_request.number }}
           ref: ${{ github.head_ref || github.ref }}
           additional_body: "${{ steps.hash_check.outputs.ERRORS || 'All system architecture specific hashes could be matched.' }}"
+          collections_changelogs: "${{ inputs.changelogs || 'No Galaxy collections changed' }}"
 
     - name: Create Pull Request
       if: ${{ !cancelled() }}
@@ -107,7 +113,9 @@ runs:
           pip dependencies
         reviewers: EnterpriseDB/tpaexec-dev-team
         draft: ${{ steps.deps.conclusion == 'failure' || steps.hash_check.conclusion == 'failure'}}
+
         add-paths: |
           requirements*.*
           requirements/*.*
           tpa-ee/aap24/build-requirements.*
+          collections/requirements.yml

@@ -4,12 +4,12 @@
 
 - include_tasks: transition.yml
   when: >
-    'replica' in role
+    'primary' in role
     and 'pem-server' not in role
 
 - include_tasks: transition.yml
   when: >
-    'primary' in role
+    'replica' in role
     and 'pem-server' not in role
 
 - include_tasks: postgres_restart.yml

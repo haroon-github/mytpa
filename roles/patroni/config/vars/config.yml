@@ -51,15 +51,13 @@ _patroni_dynamic_conf_defaults:
 
 _patroni_conf:
   scope: "{{ postgres_cluster_name }}"
-  namespace: "/{{ patroni_dcs_namespace|default('tpa') }}/"
+  namespace: "{{ patroni_dcs_namespace }}"
   name: "{{ inventory_hostname }}"
 
   restapi:
     listen: "0.0.0.0:{{ patroni_listen_port }}"
     connect_address: "{{ inventory_hostname }}:{{ patroni_listen_port }}"
-    authentication:
-      username: "{{ patroni_restapi_user }}"
-      password: "{{ vars['%s_password' % patroni_restapi_user] }}"
+    allowlist: "{{ groups['patroni']|intersect(groups['role_postgres'])|list|sort }}"
 
   # Please note that this is only used once when a patroni cluster is instantiated
   # Any subsequent changes will need to be set using either `patronictl edit-config or the API
@@ -135,11 +133,29 @@ _patroni_custom_postgres_wal_dir:
 
 _patroni_conf_ssl:
   restapi:
-    certfile: "{{ ssl_cert_file|default('/etc/tpa/'+cluster_name+'.crt') }}"
-    keyfile: "{{ ssl_key_file|default('/etc/tpa/'+cluster_name+'.key') }}"
+    certfile: "{{ patroni_ssl_cert_file }}"
+    keyfile: "{{ patroni_ssl_key_file }}"
   ctl:
-    cacert: "{{ ssl_ca_file|default(ssl_cert_file|default('/etc/tpa/'+cluster_name+'.crt')) }}"
-    certfile: "{{ ssl_cert_file|default('/etc/tpa/'+cluster_name+'.crt') }}"
+    cacert: "{{ patroni_ssl_ca_file }}"
+    certfile: "{{ patroni_ssl_cert_file }}"
+    keyfile: "{{ patroni_ssl_key_file }}"
+
+# `patroni_authentication_mode` is basic
+
+_patroni_conf_basic_authentication:
+  restapi:
+    authentication:
+      username: "{{ patroni_restapi_user }}"
+      password: "{{ vars['%s_password' % patroni_restapi_user] }}"
+
+# `patroni_authentication_mode` is mtls
+
+_patroni_conf_mtls_authentication:
+  restapi:
+    cafile: "{{ patroni_ssl_ca_file }}"
+    verify_client: required
+  ctl:
+    insecure: false
 
 # `patroni_rewind_enabled` is true
 
@@ -160,6 +176,27 @@ _patroni_conf_etcd:
         |list
         |sort
       }}"
+    protocol: "{{ etcd_protocol }}"
+
+# `etcd_ssl_enabled` is true
+
+_patroni_conf_etcd_ssl:
+  etcd3:
+    cacert: "{{ ssl_ca_file }}"
+
+# `etcd_authentication_mode` is basic
+
+_patroni_conf_etcd_basic_authentication:
+  etcd3:
+    username: "{{ patroni_etcd_user }}"
+    password: "{{ vars['%s_password' % patroni_etcd_user] }}"
+
+# `etcd_authentication_mode` is mtls
+
+_patroni_conf_etcd_mtls_authentication:
+  etcd3:
+    cert: "{{ patroni_ssl_cert_file }}"
+    key: "{{ patroni_ssl_key_file }}"
 
 # `patroni_watchdog_enabled` is true
 

@@ -20,7 +20,6 @@ full: # 500+ clusters do not use this option
     - "pgextended" # edbpge is not available for bdr4, it will be changed to edbpge during reconfigure
     - "epas"
   tpa_postgres_version: &full_tpa_postgres_version
-    - 12
     - 13
     - 14
   tpa_layout: &full_tpa_layout
