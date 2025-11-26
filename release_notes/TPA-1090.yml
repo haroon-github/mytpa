@@ -1,7 +1,0 @@
-- summary: Update the internal dictionary of the AWS regions
-  description: |
-    The change updates the internal dictionary of the AWS regions to expand the
-    coverage of the supported regions and corresponding AZs.
-  type: minor_change
-  jira_tickets:
-    - TPA-1090

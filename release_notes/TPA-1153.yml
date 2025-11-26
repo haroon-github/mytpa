@@ -1,9 +1,0 @@
-- summary: Move pre-deploy hook outside repositories role
-  description: |
-    This hook was part of the repositories role, however, because nowadays
-    we introduced the possibility to exclude this role from deployments, the
-    hook was not being executed in those cases. To avoid this situation, we
-    moved the hook outside the role so it's always executed.
-  type: minor_change
-  jira_tickets:
-  - TPA-1153
