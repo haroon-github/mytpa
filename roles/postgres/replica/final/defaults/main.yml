@@ -1,0 +1,14 @@
+---
+
+# © Copyright EnterpriseDB UK Limited 2015-2025 - All rights reserved.
+
+## pg_basebackup timeout for cloning replicas
+#
+# For large databases, pg_basebackup can take multiple hours to complete.
+# This timeout value (in seconds) determines how long to wait for the
+# pg_basebackup operation to complete.
+#
+# Default: 14400 seconds (4 hours)
+# Set to 0 for no timeout (not recommended)
+
+pg_basebackup_timeout: 14400

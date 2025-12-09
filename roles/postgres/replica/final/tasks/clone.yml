@@ -39,9 +39,23 @@
     extra_option: "{{ waldir_option if pg_wal_dir_outside_pgdata else '' }}"
   become_user: "{{ postgres_user }}"
   become: true
-  register: this
+  async: "{{ pg_basebackup_timeout }}"
+  poll: 0
+  register: pg_basebackup_job
+  when:
+    task_selector|selects('postgres', 'replica')
+
+- name: Wait for pg_basebackup to complete
+  async_status:
+    jid: "{{ pg_basebackup_job.ansible_job_id }}"
+  become_user: "{{ postgres_user }}"
+  become: true
+  register: pg_basebackup_result
+  until: pg_basebackup_result.finished
+  retries: "{{ (pg_basebackup_timeout / 10) | int }}"
+  delay: 10
   failed_when:
-    this.rc != 0 or 'error' in this.stderr
+    pg_basebackup_result.rc != 0 or 'error' in pg_basebackup_result.stderr
   when:
     task_selector|selects('postgres', 'replica')
 
