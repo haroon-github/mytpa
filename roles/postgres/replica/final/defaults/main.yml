@@ -9,6 +9,6 @@
 # pg_basebackup operation to complete.
 #
 # Default: 14400 seconds (4 hours)
-# Set to 0 for no timeout (not recommended)
+# For very large databases, increase this value as needed (e.g., 28800 for 8 hours)
 
 pg_basebackup_timeout: 14400

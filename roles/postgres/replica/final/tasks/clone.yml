@@ -52,10 +52,10 @@
   become: true
   register: pg_basebackup_result
   until: pg_basebackup_result.finished
-  retries: "{{ (pg_basebackup_timeout / 10) | int }}"
+  retries: "{{ [(pg_basebackup_timeout / 10) | int, 1] | max }}"
   delay: 10
   failed_when:
-    pg_basebackup_result.rc != 0 or 'error' in pg_basebackup_result.stderr
+    pg_basebackup_result.rc != 0 or 'error' in (pg_basebackup_result.stderr | default(''))
   when:
     task_selector|selects('postgres', 'replica')
 
